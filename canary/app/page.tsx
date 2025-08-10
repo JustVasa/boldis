@@ -4,7 +4,7 @@ import Image from "next/image";
 import Navbar from "./components/Navbar";
 import Link from "next/link";
 import BackToTop from "./components/BackToTop";
-import "./backtotop.css";
+import "./backToTop.css";
 
 export default function Home() {
   return (
