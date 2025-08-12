@@ -5,6 +5,7 @@ import Navbar from "./components/Navbar";
 import Link from "next/link";
 import BackToTop from "./components/BackToTop";
 import { BsArrowRight } from "react-icons/bs";
+import { FaMapMarkerAlt, FaPhoneAlt, FaEnvelope, FaFacebook, FaInstagram, FaYoutube  } from "react-icons/fa";
 import AgeImg from "../public/profile.jpeg";
 import "./backToTop.css";
 
@@ -149,7 +150,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Galerie – upravená pro PC */}
+      {/* Galerie */}
       <section className="relative py-16 bg-gray-50">
         <div className="container mx-auto px-6">
           <div className="flex items-end justify-between mb-8">
@@ -197,8 +198,81 @@ export default function Home() {
         </div>
       </section>
 
-      <div className="relative z-10 flex-grow bg-white bg-opacity-10"></div>
+      {/* Kontakt sekce */}
+      <section className="relative py-20">
+        {/* Pozadí */}
+        <div className="absolute inset-0">
+          <Image
+            src="/contact.jpg"
+            alt="Kontakt"
+            fill
+            className="object-cover"
+          />
+          <div className="absolute inset-0 backdrop-blur-3xl bg-black/40" />
+        </div>
+
+        <div className="relative container mx-auto px-6">
+          <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10">
+            {/* Form */}
+            <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-8 shadow-2xl">
+              <h3 className="text-3xl font-bold mb-6 text-white">Kontaktujte nás</h3>
+              <form className="space-y-5">
+                <input type="text" placeholder="Jméno a příjmení" className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/80 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]" />
+                <input type="tel" placeholder="Telefon" className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/80 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]" />
+                <input type="email" placeholder="Email" className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/80 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]" />
+                <textarea placeholder="Zpráva" rows={4} className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/80 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]" />
+                <button type="submit" className="w-full py-3 bg-[#57BDDB] text-white font-semibold rounded-lg hover:bg-[#3BA7C7] transition-all">Odeslat</button>
+              </form>
+            </div>
+
+            {/* Info */}
+            <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-8 shadow-2xl text-white flex flex-col justify-center">
+              <h3 className="text-3xl font-bold mb-8">Taneční centrum Mirror</h3>
+              <ul className="space-y-6 text-lg">
+                <li className="flex items-center">
+                  <FaMapMarkerAlt className="text-white text-2xl mr-4" />
+                  Moravská Třebová, Česká republika
+                </li>
+                <li className="flex items-center">
+                  <FaPhoneAlt className="text-white text-2xl mr-4" />
+                  <a href="tel:+420123456789" className="hover:underline">
+                    +420 123 456 789
+                  </a>
+                </li>
+
+                <li className="flex items-center">
+                  <FaEnvelope className="text-white text-2xl mr-4" />
+                  <a href="mailto:info@mirror.cz" className="hover:underline">
+                    info@mirror.cz
+                  </a>
+                </li>
+              </ul>
+
+            {/* Social icons */}
+            <div className="flex space-x-4 mt-8">
+              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="bg-white/20 hover:bg-white/30 p-3 rounded-full transition-colors">
+                <FaFacebook className="text-white text-2xl" />
+              </a>
+              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="bg-white/20 hover:bg-white/30 p-3 rounded-full transition-colors">
+                <FaInstagram className="text-white text-2xl" />
+              </a>
+              <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" className="bg-white/20 hover:bg-white/30 p-3 rounded-full transition-colors">
+                <FaYoutube className="text-white text-2xl" />
+              </a>
+            </div>
+          </div>
+          </div>
+        </div>
+      </section>
+
       <BackToTop />
+
+      {/* Footer */}
+      <footer className="bg-white text-gray-700 text-center py-6 mt-auto border-t border-gray-200">
+        <p className="text-base font-medium">
+          © 2024 Taneční centrum Mirror - Tomáš Boldiš
+        </p>
+      </footer>
     </div>
   );
 }
