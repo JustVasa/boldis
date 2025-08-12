@@ -8,7 +8,7 @@ const LINKS = [
   { href: "/", label: "O NÁS" },
   { href: "/services", label: "NABÍZÍME" },
   { href: "/courses", label: "TANEČNÍ KURZY" },
-  { href: "/apply", label: "PŘIHLÁŠKA" },
+  { href: "/apply", label: "GALERIE" },
   { href: "/contact", label: "KONTAKTY" },
 ];
 

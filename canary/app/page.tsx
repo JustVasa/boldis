@@ -149,6 +149,54 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Galerie – upravená pro PC */}
+      <section className="relative py-16 bg-gray-50">
+        <div className="container mx-auto px-6">
+          <div className="flex items-end justify-between mb-8">
+            <h2 className="text-3xl font-bold text-gray-800">Galerie</h2>
+            <Link href="/gallery" className="text-[#57BDDB] font-semibold hover:underline">
+              Zobrazit více
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
+            {/* Velká fotka */}
+            <div className="relative col-span-2 row-span-2">
+              <div className="relative h-full min-h-[350px] lg:min-h-[400px] rounded-2xl overflow-hidden shadow-xl">
+                <Image
+                  src="/gallery/gal-1.jpg"
+                  alt="Galerie 1"
+                  fill
+                  className="object-cover object-[50%_30%]"
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  priority
+                />
+                <div className="absolute inset-0 bg-black/20"></div>
+              </div>
+            </div>
+
+            {/* Ostatní fotky */}
+            {[
+              { src: "/gallery/gal-2.jpg", alt: "Galerie 2" },
+              { src: "/gallery/gal-3.jpg", alt: "Galerie 3" },
+              { src: "/gallery/gal-4.jpg", alt: "Galerie 4" },
+              { src: "/gallery/gal-5.jpg", alt: "Galerie 5" }
+            ].map((g, i) => (
+              <div key={i} className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-lg">
+                <Image
+                  src={g.src}
+                  alt={g.alt}
+                  fill
+                  className="object-cover object-[50%_20%]"
+                  sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                />
+                <div className="absolute inset-0 bg-black/10"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <div className="relative z-10 flex-grow bg-white bg-opacity-10"></div>
       <BackToTop />
     </div>
