@@ -39,29 +39,28 @@ const Navbar: React.FC = () => {
 
   return (
     <nav
-      className={`fixed top-0 left-0 w-full px-4 py-4 z-50 transition-colors duration-300 ${
+      className={`fixed top-0 left-0 w-full px-4 z-50 transition-all duration-300 ${
         isScrolled
-          ? "bg-[rgba(0,0,0,0.7)] text-white shadow-md py-2"
-          : "bg-transparent text-white"
+          ? "bg-[rgba(0,0,0,0.7)] text-white shadow-md py-1"
+          : "bg-transparent text-white py-4"
       }`}
       role="navigation"
       aria-label="Hlavní navigace"
     >
-      {/* řádek s logem a ovládacími prvky */}
       <div className="container mx-auto flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center sm:ml-0 ml-[-20px]">
           <Image
             src="/logo.svg"
             alt="Logo"
-            width={isScrolled ? 200 : 270}
-            height={isScrolled ? 110 : 150}
+            width={isScrolled ? 150 : 270} // zmenšeno při scrollu
+            height={isScrolled ? 90 : 150}
             className="mr-2 transition-all duration-300"
             priority
           />
         </Link>
 
-        {/* Desktop Menu (viditelné od lg) */}
+        {/* Desktop Menu */}
         <div
           className={`hidden lg:flex items-center text-lg space-x-6 font-poppins transition-all duration-300 mr-2`}
         >
@@ -72,7 +71,7 @@ const Navbar: React.FC = () => {
           ))}
         </div>
 
-        {/* Mobile Menu Button (burger) */}
+        {/* Mobile Menu Button */}
         <button
           type="button"
           onClick={() => setIsMenuOpen((v) => !v)}
@@ -81,7 +80,6 @@ const Navbar: React.FC = () => {
           aria-controls="mobile-menu"
           aria-label={isMenuOpen ? "Zavřít menu" : "Otevřít menu"}
         >
-          {/* 3 čárky */}
           <span
             className={`block w-7 h-0.5 bg-white absolute transition-transform duration-300 ${
               isMenuOpen ? "rotate-45 translate-y-0" : "-translate-y-2.5"
