@@ -4,13 +4,17 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
-const LINKS = [
-  { href: "/", label: "O NÁS" },
-  { href: "/services", label: "NABÍZÍME" },
-  { href: "/courses", label: "TANEČNÍ KURZY" },
-  { href: "/apply", label: "GALERIE" },
-  { href: "/contact", label: "KONTAKTY" },
+type NavItem = { href: string; label: string };
+
+const LINKS: NavItem[] = [
+  { href: "/about",      label: "O NÁS" },      // otevře novou stránku
+  { href: "/#services",  label: "NABÍZÍME" },   // scroll na sekci
+  { href: "/#courses",   label: "TANEČNÍ KURZY"},
+  { href: "/#gallery",   label: "GALERIE" },
+  { href: "/#contact",   label: "KONTAKTY" },
 ];
+
+const NAV_HEIGHT = 72; // px – výška fixního navbaru (pro offset scrollu)
 
 const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -24,7 +28,7 @@ const Navbar: React.FC = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Lock page scroll when menu is open + close on Escape
+  // Lock body scroll při otevřeném menu + zavření na Escape
   useEffect(() => {
     document.body.style.overflow = isMenuOpen ? "hidden" : "";
     const onKey = (e: KeyboardEvent) => {
@@ -36,6 +40,38 @@ const Navbar: React.FC = () => {
       window.removeEventListener("keydown", onKey);
     };
   }, [isMenuOpen]);
+
+  // Intercept kliků na anchor odkazy (/#sekce), pokud už jsme na homepage
+  const handleAnchorClick = (
+  e: React.MouseEvent<HTMLAnchorElement>,
+  href: string
+) => {
+  if (!href.startsWith("/#")) return;
+  const onHome = window.location.pathname === "/" || window.location.pathname === "/home";
+  if (!onHome) return;
+
+  e.preventDefault();
+  const id = href.split("#")[1];
+  const el = document.getElementById(id);
+  if (el) {
+    const rect = el.getBoundingClientRect();
+
+    if (window.innerWidth > 1024) {
+      // PC → střed sekce
+      const elementCenterOffset =
+        rect.top + window.scrollY - (window.innerHeight / 2) + (rect.height / 2);
+      window.scrollTo({ top: elementCenterOffset, behavior: "smooth" });
+    } else {
+      // Mobil/tablet → horní část
+      window.scrollTo({ top: rect.top + window.scrollY, behavior: "smooth" });
+    }
+
+    history.replaceState(null, "", `#${id}`);
+  }
+  setIsMenuOpen(false);
+};
+
+
 
   return (
     <nav
@@ -53,7 +89,7 @@ const Navbar: React.FC = () => {
           <Image
             src="/logo.svg"
             alt="Logo"
-            width={isScrolled ? 150 : 270} // zmenšeno při scrollu
+            width={isScrolled ? 150 : 270}
             height={isScrolled ? 90 : 150}
             className="mr-2 transition-all duration-300"
             priority
@@ -61,11 +97,14 @@ const Navbar: React.FC = () => {
         </Link>
 
         {/* Desktop Menu */}
-        <div
-          className={`hidden lg:flex items-center text-lg space-x-6 font-poppins transition-all duration-300 mr-2`}
-        >
+        <div className="hidden lg:flex items-center text-lg space-x-6 font-poppins transition-all duration-300 mr-2">
           {LINKS.map((item) => (
-            <Link key={item.href} href={item.href} className="hover:opacity-70">
+            <Link
+              key={item.href}
+              href={item.href}
+              className="hover:opacity-70"
+              onClick={(e) => handleAnchorClick(e, item.href)}
+            >
               {item.label}
             </Link>
           ))}
@@ -112,7 +151,10 @@ const Navbar: React.FC = () => {
             key={item.href}
             href={item.href}
             className="hover:text-gray-300"
-            onClick={() => setIsMenuOpen(false)}
+            onClick={(e) => {
+              handleAnchorClick(e, item.href);
+              setIsMenuOpen(false);
+            }}
           >
             {item.label}
           </Link>
