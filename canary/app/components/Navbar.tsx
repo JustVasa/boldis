@@ -7,14 +7,14 @@ import Image from "next/image";
 type NavItem = { href: string; label: string };
 
 const LINKS: NavItem[] = [
-  { href: "/about",      label: "O NÁS" },      // otevře novou stránku
-  { href: "/#services",  label: "NABÍZÍME" },   // scroll na sekci
-  { href: "/#courses",   label: "TANEČNÍ KURZY"},
-  { href: "/#gallery",   label: "GALERIE" },
-  { href: "/#contact",   label: "KONTAKTY" },
+  { href: "/about",     label: "O NÁS" },      // otevře novou stránku
+  { href: "/#services", label: "NABÍZÍME" },   // scroll na sekci
+  { href: "/#courses",  label: "TANEČNÍ KURZY"},
+  { href: "/#gallery",  label: "GALERIE" },
+  { href: "/#contact",  label: "KONTAKTY" },
 ];
 
-const NAV_HEIGHT = 72; // px – výška fixního navbaru (pro offset scrollu)
+const NAV_HEIGHT = 80; // px – výška fixního navbaru (pro mobilní offset)
 
 const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -43,35 +43,37 @@ const Navbar: React.FC = () => {
 
   // Intercept kliků na anchor odkazy (/#sekce), pokud už jsme na homepage
   const handleAnchorClick = (
-  e: React.MouseEvent<HTMLAnchorElement>,
-  href: string
-) => {
-  if (!href.startsWith("/#")) return;
-  const onHome = window.location.pathname === "/" || window.location.pathname === "/home";
-  if (!onHome) return;
+    e: React.MouseEvent<HTMLAnchorElement>,
+    href: string
+  ) => {
+    if (!href.startsWith("/#")) return; // normální link, neřešíme
+    const onHome =
+      window.location.pathname === "/" || window.location.pathname === "/home";
+    if (!onHome) return; // nejsme na homepage → nechat proběhnout navigaci
 
-  e.preventDefault();
-  const id = href.split("#")[1];
-  const el = document.getElementById(id);
-  if (el) {
+    e.preventDefault();
+    const id = href.split("#")[1];
+    const el = document.getElementById(id);
+    if (!el) return;
+
     const rect = el.getBoundingClientRect();
+    const currentY = window.scrollY;
 
     if (window.innerWidth > 1024) {
       // PC → střed sekce
-      const elementCenterOffset =
-        rect.top + window.scrollY - (window.innerHeight / 2) + (rect.height / 2);
-      window.scrollTo({ top: elementCenterOffset, behavior: "smooth" });
+      const target =
+        rect.top + currentY - window.innerHeight / 2 + rect.height / 2;
+      window.scrollTo({ top: target, behavior: "smooth" });
     } else {
-      // Mobil/tablet → horní část
-      window.scrollTo({ top: rect.top + window.scrollY, behavior: "smooth" });
+      // Mobil/tablet → horní část s offsetem o navbar
+      const target = rect.top + currentY - NAV_HEIGHT;
+      window.scrollTo({ top: target, behavior: "smooth" });
     }
 
+    // aktualizuj hash v URL bez dalšího skoku
     history.replaceState(null, "", `#${id}`);
-  }
-  setIsMenuOpen(false);
-};
-
-
+    setIsMenuOpen(false);
+  };
 
   return (
     <nav
