@@ -28,16 +28,13 @@ export default function Promo() {
           <div className="block-contents mt-5 xl:mt-0 xl:ml-5">
             <span className="text-[#57BDDB] uppercase text-sm font-semibold">KDO JSME</span>
             <h1 className="text-3xl sm:text-4xl font-bold mt-3 text-black">
-              TANEČNÍ SPORTOVNÍ CENTRUM
+              Jsme taneční centrum MIRROR
             </h1>
             <h4 className="text-lg text-gray-700 mt-3">
-              Jsme nově vzniklé taneční studio, které založil Tomáš Boldiš.
+              Nově otevřené taneční centrum v Moravské Třebové pod vedením Tomáše Boldiše - profesionálního tanečníka a lektora. 
             </h4>
             <p className="mt-4 text-gray-600 leading-relaxed">
-              Chceme vytvořit příjemné místo, kde se lidé budou rádi potkávat a kde se budou učit
-              tančit ať už na amatérské (hobby) úrovni nebo na profesionální (soutěžní) úrovni.
-              Součástí Tanečního a sportovního centra je i taneční klub TSC Kučera dance team,
-              jehož členové patří k absolutní české i světové špičce.
+              Nabízíme taneční kurzy pro dospělé, studenty i děti. Přijďte si zatančit s námi! 
             </p>
             <Link
               href="/contact"
