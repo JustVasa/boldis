@@ -27,7 +27,7 @@ export default function AboutPage() {
         <div className="container mx-auto px-6 pt-36 pb-28 sm:pt-44 sm:pb-36">
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-white text-5xl sm:text-7xl font-extrabold tracking-tight drop-shadow-lg">
-              O&nbsp;nás
+              O&nbsp; NÁS
             </h1>
           </div>
         </div>
