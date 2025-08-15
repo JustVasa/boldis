@@ -7,7 +7,6 @@ const COURSES = [
   { title: "Taneční kroužky pro děti", img: "/kurzy/deti.jpg", desc: "Hravá a zábavná forma tance pro nejmenší." },
   { title: "Svatební lekce", img: "/kurzy/svatebni.jpg", desc: "Naučíme vás dokonalý svatební tanec." },
   { title: "Individuální lekce", img: "/kurzy/individual.jpg", desc: "Přizpůsobené lekce přesně vašim potřebám." },
-  { title: "Pro - Am", img: "/kurzy/proam.jpg", desc: "Tanečník amatér a profesionál na jedné vlně." },
   { title: "Kroužek baletu", img: "/kurzy/balet.jpg", desc: "Základy i pokročilé prvky baletu pro děti a dospělé." },
 ];
 
