@@ -42,9 +42,6 @@ export default function AboutPage() {
               {/* Left – Text */}
               <div className="text-center lg:text-left">
                 <div className="pb-6">
-                  <p className="uppercase tracking-widest text-[#57BDDB] font-semibold">
-                    O NÁS
-                  </p>
                   <h2 className="text-3xl sm:text-4xl font-extrabold mt-2 text-gray-600">
                     Taneční centrum <span className="text-[#57BDDB]">MIRROR</span>
                   </h2>
