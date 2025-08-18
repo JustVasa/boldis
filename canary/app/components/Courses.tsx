@@ -1,14 +1,50 @@
 import Link from "next/link";
 
 const COURSES = [
-  { title: "Taneční pro dospělé", img: "/kurzy/dospele.jpg", desc: "Kurz pro všechny věkové kategorie dospělých, od začátečníků po pokročilé." },
-  { title: "Taneční pro mládež", img: "/kurzy/mladez.jpg", desc: "Pro mladé tanečníky plné energie a nadšení." },
-  { title: "Latino Ladies", img: "/kurzy/latino.jpg", desc: "Smyslné latino tance pro ženy všech věkových kategorií." },
-  { title: "Taneční kroužky pro děti", img: "/kurzy/deti.jpg", desc: "Hravá a zábavná forma tance pro nejmenší." },
-  { title: "Svatební lekce", img: "/kurzy/svatebni.jpg", desc: "Naučíme vás dokonalý svatební tanec." },
-  { title: "Individuální lekce", img: "/kurzy/individual.jpg", desc: "Přizpůsobené lekce přesně vašim potřebám." },
-  { title: "Kroužek baletu", img: "/kurzy/balet.jpg", desc: "Základy i pokročilé prvky baletu pro děti a dospělé." },
+  { 
+    slug: "tanecni-pro-dospele",
+    title: "Taneční pro dospělé", 
+    img: "/kurzy/dospele.jpg", 
+    desc: "Kurz pro všechny věkové kategorie dospělých, od začátečníků po pokročilé." 
+  },
+  { 
+    slug: "tanecni-pro-mladez",
+    title: "Taneční pro mládež", 
+    img: "/kurzy/mladez.jpg", 
+    desc: "Pro mladé tanečníky plné energie a nadšení." 
+  },
+  { 
+    slug: "latino-ladies",
+    title: "Latino Ladies", 
+    img: "/kurzy/latino.jpg", 
+    desc: "Smyslné latino tance pro ženy všech věkových kategorií." 
+  },
+  { 
+    slug: "tanecni-krouzky-pro-deti",
+    title: "Taneční kroužky pro děti", 
+    img: "/kurzy/deti.jpg", 
+    desc: "Hravá a zábavná forma tance pro nejmenší." 
+  },
+  { 
+    slug: "svatebni-lekce",
+    title: "Svatební lekce", 
+    img: "/kurzy/svatebni.jpg", 
+    desc: "Naučíme vás dokonalý svatební tanec." 
+  },
+  { 
+    slug: "individualni-lekce",
+    title: "Individuální lekce", 
+    img: "/kurzy/individual.jpg", 
+    desc: "Přizpůsobené lekce přesně vašim potřebám." 
+  },
+  { 
+    slug: "krouzek-baletu",
+    title: "Kroužek baletu", 
+    img: "/kurzy/balet.jpg", 
+    desc: "Základy i pokročilé prvky baletu pro děti a dospělé." 
+  },
 ];
+
 
 export default function Courses() {
   return (
@@ -31,7 +67,7 @@ export default function Courses() {
                 <h3 className="text-lg font-bold mb-2">{course.title}</h3>
                 <p className="text-sm mb-4">{course.desc}</p>
                 <Link
-                  href="/courses"
+                  href={`/courses/${course.slug}`}
                   className="bg-[#57BDDB] text-white text-sm px-4 py-2 rounded-full shadow hover:bg-[#3BA7C7] transition"
                 >
                   Zjistit více
