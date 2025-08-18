@@ -18,11 +18,9 @@ export default function Contact() {
   const [message, setMessage] = useState("");
 
   const [pending, setPending] = useState(false);
-  const [status, setStatus] = useState<null | { ok: boolean; msg: string }>(
-    null
-  );
+  const [status, setStatus] = useState<null | { ok: boolean; msg: string }>(null);
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setStatus(null);
 
@@ -33,13 +31,16 @@ export default function Contact() {
 
     try {
       setPending(true);
+
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, phone, email, message }),
       });
 
-      const data = await res.json();
+      type ApiResponse = { ok: boolean; error?: string };
+      const data: ApiResponse = await res.json();
+
       if (!res.ok || !data?.ok) {
         throw new Error(data?.error || "Odeslání se nepodařilo.");
       }
@@ -49,11 +50,12 @@ export default function Contact() {
       setPhone("");
       setEmail("");
       setMessage("");
-    } catch (err: any) {
-      setStatus({
-        ok: false,
-        msg: err?.message || "Odeslání se nepodařilo. Zkuste to prosím znovu.",
-      });
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "Odeslání se nepodařilo. Zkuste to prosím znovu.";
+      setStatus({ ok: false, msg });
     } finally {
       setPending(false);
     }
@@ -65,7 +67,13 @@ export default function Contact() {
         <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-stretch">
           {/* Form card */}
           <div className="relative rounded-2xl overflow-hidden shadow-2xl">
-            <Image src="/contact1.jpg" alt="" fill className="object-cover" priority />
+            <Image
+              src="/contact1.jpg"
+              alt=""
+              fill
+              className="object-cover"
+              priority
+            />
             <div className="absolute inset-0 z-0 bg-black/40 backdrop-blur-xl" />
             <div className="relative z-10 p-8 text-white bg-white/10 border border-white/20">
               <h3 className="text-3xl font-bold mb-6">Kontaktujte nás</h3>
@@ -75,14 +83,17 @@ export default function Contact() {
                 <div
                   className={[
                     "mb-4 rounded-lg px-4 py-3 text-sm",
-                    status.ok ? "bg-emerald-500/20 border border-emerald-400/40" : "bg-red-500/20 border border-red-400/40",
+                    status.ok
+                      ? "bg-emerald-500/20 border border-emerald-400/40"
+                      : "bg-red-500/20 border border-red-400/40",
                   ].join(" ")}
+                  role="status"
                 >
                   {status.msg}
                 </div>
               )}
 
-              <form className="space-y-5" onSubmit={onSubmit}>
+              <form className="space-y-5" onSubmit={onSubmit} noValidate>
                 <input
                   type="text"
                   placeholder="Jméno a příjmení*"
@@ -90,6 +101,7 @@ export default function Contact() {
                   onChange={(e) => setName(e.target.value)}
                   className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/80 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]"
                   required
+                  aria-label="Jméno a příjmení"
                 />
                 <input
                   type="tel"
@@ -97,6 +109,7 @@ export default function Contact() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/80 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]"
+                  aria-label="Telefon"
                 />
                 <input
                   type="email"
@@ -105,6 +118,7 @@ export default function Contact() {
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/80 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]"
                   required
+                  aria-label="Email"
                 />
                 <textarea
                   placeholder="Zpráva*"
@@ -113,6 +127,7 @@ export default function Contact() {
                   onChange={(e) => setMessage(e.target.value)}
                   className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/80 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]"
                   required
+                  aria-label="Zpráva"
                 />
                 <button
                   type="submit"
@@ -127,7 +142,13 @@ export default function Contact() {
 
           {/* Info card */}
           <div className="relative rounded-2xl overflow-hidden shadow-2xl min-h-[420px] lg:min-h-[500px]">
-            <Image src="/contact.jpg" alt="" fill className="object-cover" priority />
+            <Image
+              src="/contact.jpg"
+              alt=""
+              fill
+              className="object-cover"
+              priority
+            />
             <div className="absolute inset-0 z-10 bg-black/40 backdrop-blur-xl" />
             <div className="absolute inset-0 z-20 flex items-center">
               <div className="w-full h-full p-8 text-white bg-white/10 border border-white/20 flex flex-col justify-center">
@@ -139,28 +160,48 @@ export default function Contact() {
                   </li>
                   <li className="flex items-center">
                     <FaPhoneAlt className="text-white text-2xl mr-4" />
-                    <a href="tel:+420123456789" className="hover:underline">+420 123 456 789</a>
+                    <a href="tel:+420123456789" className="hover:underline">
+                      +420 123 456 789
+                    </a>
                   </li>
                   <li className="flex items-center">
                     <FaEnvelope className="text-white text-2xl mr-4" />
-                    <a href="mailto:info@mirror.cz" className="hover:underline">info@mirror.cz</a>
+                    <a href="mailto:info@mirror.cz" className="hover:underline">
+                      info@mirror.cz
+                    </a>
                   </li>
                 </ul>
 
                 <div className="flex space-x-4 mt-8">
-                  <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="bg-white/20 hover:bg-white/30 p-3 rounded-full transition-colors">
+                  <a
+                    href="https://facebook.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-white/20 hover:bg-white/30 p-3 rounded-full transition-colors"
+                  >
                     <FaFacebook className="text-white text-2xl" />
                   </a>
-                  <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="bg-white/20 hover:bg-white/30 p-3 rounded-full transition-colors">
+                  <a
+                    href="https://instagram.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-white/20 hover:bg-white/30 p-3 rounded-full transition-colors"
+                  >
                     <FaInstagram className="text-white text-2xl" />
                   </a>
-                  <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" className="bg-white/20 hover:bg-white/30 p-3 rounded-full transition-colors">
+                  <a
+                    href="https://youtube.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-white/20 hover:bg-white/30 p-3 rounded-full transition-colors"
+                  >
                     <FaYoutube className="text-white text-2xl" />
                   </a>
                 </div>
               </div>
             </div>
           </div>
+          {/* /Info card */}
         </div>
       </div>
     </section>
