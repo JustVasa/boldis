@@ -5,7 +5,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import Navbar from "../../components/Navbar";
 import { use, useCallback, useMemo } from "react";
-// ✅ absolutní import – jistota, že bereš správná data
 import { COURSES, getCourse } from "@/app/courses/_data";
 
 export default function CoursePage({
@@ -13,10 +12,8 @@ export default function CoursePage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  // Next.js 15: params je Promise → rozbalíme pomocí use()
   const { slug } = use(params);
 
-  // Hooky musí být volané vždy
   const related = useMemo(
     () => COURSES.filter((c) => c.slug !== slug).slice(0, 4),
     [slug]
@@ -60,95 +57,102 @@ export default function CoursePage({
 
       {/* Obsah kurzu */}
       <main className="container mx-auto px-6 py-12 sm:py-16">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10 items-start">
-          {/* Popis kurzu */}
-          <article className="lg:col-span-2 bg-white rounded-2xl shadow-lg ring-1 ring-gray-200 p-6">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">O kurzu</h2>
+        {/* Popis kurzu */}
+        <article className="bg-white rounded-2xl shadow-lg ring-1 ring-gray-200 p-6">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-4">O kurzu</h2>
 
-            {desc ? (
-              <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                {desc}
+          {desc ? (
+            <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+              {desc}
+            </p>
+          ) : (
+            <p className="text-gray-500 italic">Popis kurzu bude doplněn.</p>
+          )}
+        </article>
+
+        {/* Info a formulář vedle sebe */}
+        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10 items-stretch">
+          {/* Info buňka */}
+          <div className="bg-white rounded-2xl shadow-lg ring-1 ring-gray-200 p-6 h-full">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              Informace o kurzu
+            </h3>
+            <dl className="space-y-4 text-gray-700">
+              <div>
+                <dt className="font-medium text-gray-900">
+                  <b>Cena</b>
+                </dt>
+                <dd className="mt-1">
+                  10 lekcí: <b>1990&nbsp;Kč / osoba</b>
+                </dd>
+              </div>
+              <div>
+                <dt className="font-medium text-gray-900">
+                  <b>Lektor</b>
+                </dt>
+                <dd className="mt-1">Tomáš Boldiš</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-gray-900">
+                  <b>Detaily</b>
+                </dt>
+                <dd className="mt-1">
+                  Každý čtvrtek od <b>19:30 – 21:00</b>
+                </dd>
+              </div>
+            </dl>
+          </div>
+
+          {/* Registrační formulář */}
+          <div className="bg-white rounded-2xl shadow-lg ring-1 ring-gray-200 p-6 h-full">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              Registrační formulář
+            </h3>
+            <form className="space-y-4" onSubmit={onSubmit}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <input
+                  type="text"
+                  required
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]"
+                  placeholder="Jméno"
+                  name="firstName"
+                />
+                <input
+                  type="text"
+                  required
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]"
+                  placeholder="Příjmení"
+                  name="lastName"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <input
+                  type="email"
+                  required
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]"
+                  placeholder="Email"
+                  name="email"
+                />
+                <input
+                  type="tel"
+                  required
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]"
+                  placeholder="Tel. číslo"
+                  name="phone"
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full rounded-lg bg-[#57BDDB] px-4 py-3 text-white font-semibold shadow hover:bg-[#3BA7C7] transition"
+              >
+                Registrovat a zaplatit
+              </button>
+              <p className="text-xs text-gray-500 mt-2">
+                Odesláním souhlasíte se zpracováním osobních údajů pro účely
+                registrace.
               </p>
-            ) : (
-              <p className="text-gray-500 italic">
-                Popis kurzu bude doplněn.
-              </p>
-            )}
-          </article>
-
-          {/* Pravý sloupec */}
-          <aside className="flex flex-col gap-8 self-start">
-            {/* Info buňka */}
-            <div className="bg-white rounded-2xl shadow-lg ring-1 ring-gray-200 p-6 w-full">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                Informace o kurzu
-              </h3>
-              <dl className="space-y-4 text-gray-700">
-                <div>
-                  <dt className="font-medium text-gray-900"><b>Cena</b></dt>
-                  <dd className="mt-1">10 lekcí: <b>1990&nbsp;Kč / osoba</b></dd>
-                </div>
-                <div>
-                  <dt className="font-medium text-gray-900"><b>Lektor</b></dt>
-                  <dd className="mt-1">Tomáš Boldiš</dd>
-                </div>
-                <div>
-                  <dt className="font-medium text-gray-900"><b>Detaily</b></dt>
-                  <dd className="mt-1">Každý čtvrtek od <b>19:30 – 21:00</b></dd>
-                </div>
-              </dl>
-            </div>
-
-            {/* Registrační formulář */}
-            <div className="bg-white rounded-2xl shadow-lg ring-1 ring-gray-200 p-6 w-full">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                Registrační formulář
-              </h3>
-              <form className="space-y-4" onSubmit={onSubmit}>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <input
-                    type="text"
-                    required
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]"
-                    placeholder="Jméno"
-                    name="firstName"
-                  />
-                  <input
-                    type="text"
-                    required
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]"
-                    placeholder="Příjmení"
-                    name="lastName"
-                  />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <input
-                    type="email"
-                    required
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]"
-                    placeholder="Email"
-                    name="email"
-                  />
-                  <input
-                    type="tel"
-                    required
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]"
-                    placeholder="Tel. číslo"
-                    name="phone"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="w-full rounded-lg bg-[#57BDDB] px-4 py-3 text-white font-semibold shadow hover:bg-[#3BA7C7] transition"
-                >
-                  Registrovat a zaplatit
-                </button>
-                <p className="text-xs text-gray-500 mt-2">
-                  Odesláním souhlasíte se zpracováním osobních údajů pro účely registrace.
-                </p>
-              </form>
-            </div>
-          </aside>
+            </form>
+          </div>
         </div>
 
         {/* Další kurzy */}
@@ -157,7 +161,8 @@ export default function CoursePage({
             Další kurzy v MIRROR centru
           </h2>
           <p className="mt-2 text-center text-gray-600">
-            Prozkoumejte i další možnosti – od společenských tanců po latino a balet.
+            Prozkoumejte i další možnosti – od společenských tanců po latino a
+            balet.
           </p>
 
           <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
