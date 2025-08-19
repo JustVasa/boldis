@@ -8,11 +8,16 @@ const poppins = Poppins({
   variable: "--font-poppins",
 });
 
-// 👇 tady přidáš metadata
 export const metadata = {
-  title: "TC-Mirror",
-  description: "Oficiální web TC-Mirror",
+  title: "Taneční centrum Mirror",
+  description: "Kurzy tance v Mirror centru",
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
 };
+
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

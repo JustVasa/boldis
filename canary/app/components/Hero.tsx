@@ -50,9 +50,10 @@ export default function Hero() {
 
         <p className="mt-0 max-w-xl sm:max-w-2xl text-white/90 text-base sm:text-lg md:text-xl font-poppins font-light mb-8 sm:mb-10 drop-shadow-[0_2px_6px_rgba(0,0,0,0.85)]">
           Od prvního kroku až po mistrovský výkon.
-          <br className="hidden sm:block" />
+          <br />
           Kurzy pro děti, dospělé i seniory v srdci Moravské Třebové.
         </p>
+
 
         <Link href="/courses">
           <button className="mt-0 px-6 sm:px-8 py-2.5 sm:py-3 bg-[#57BDDB] text-white font-poppins font-semibold text-sm sm:text-lg rounded-full shadow-lg hover:bg-[#3BA7C7] transition-all">
