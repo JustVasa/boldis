@@ -55,7 +55,7 @@ export default function CoursesPage() {
                 <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition" />
               </div>
               <div className="p-5">
-                <h3 className="text-lg font-bold">{course.title}</h3>
+                <h3 className="text-lg text-gray-700 font-bold">{course.title}</h3>
                 <p className="text-sm text-gray-600 mt-2 line-clamp-3">
                   {course.short}
                 </p>

@@ -44,6 +44,15 @@ export const COURSES: Course[] = [
       "Naše taneční kroužky jsou určeny všem dětem, které si chtějí zatancovat, rozvíjet pohybové dovednosti a užít si radost z tance. Pracujeme s několika věkovými skupinami, takže každý malý tanečník najde kurz přesně podle svých schopností a potřeb. Pod vedením Tomáše Boldiše probíhají lekce hravou formou, která podporuje správné držení těla, rytmus, koordinaci a spolupráci ve skupině. Děti se učí základní taneční kroky, rozvíjejí kreativitu a sebevědomí. Kurz je vhodný pro začátečníky i děti s předchozími tanečními zkušenostmi.",
   },
   {
+    slug: "krouzek-baletu",
+    title: "Kroužek baletu",
+    img: "/kurzy/balet.jpg",
+    short:
+      "Základy klasického baletu hravou formou – držení těla, koordinace, cit pro hudbu.",
+    desc:
+      "Baletní kroužek je určen dětem, které chtějí rozvíjet jemnost pohybu, koordinaci a základní techniku klasického baletu. Lekce pod vedením Tomáše Boldiše probíhají přístupnou formou, která děti motivuje k pravidelnému pohybu a tvořivému vyjádření. Děti se naučí správnému držení těla, základním baletním pozicím a pohybům, rozvíjejí rytmus i koncentraci. Vhodné pro začátečníky i děti s předchozí zkušeností.",
+  },
+  {
     slug: "svatebni-lekce",
     title: "Svatební lekce",
     img: "/kurzy/svatebni.jpg",
@@ -60,15 +69,6 @@ export const COURSES: Course[] = [
       "Tempo, styl i náplň přesně podle vás – nejrychlejší cesta k pokroku.",
     desc:
       "Nabízíme individuální lekce s Tomášem Boldišem pro jednotlivce i páry. Lekce probíhají formou 1:1 nebo ve dvojici, takže se trenér plně věnuje vašim potřebám. Můžete si vybrat jakýkoliv taneční styl – od společenských tanců přes latinskoamerické až po další styly dle přání. Díky individuálním lekcím často dosáhnete rychlejšího zlepšení, lepší techniky i větší jistoty na parketu.",
-  },
-  {
-    slug: "krouzek-baletu",
-    title: "Kroužek baletu",
-    img: "/kurzy/balet.jpg",
-    short:
-      "Základy klasického baletu hravou formou – držení těla, koordinace, cit pro hudbu.",
-    desc:
-      "Baletní kroužek je určen dětem, které chtějí rozvíjet jemnost pohybu, koordinaci a základní techniku klasického baletu. Lekce pod vedením Tomáše Boldiše probíhají přístupnou formou, která děti motivuje k pravidelnému pohybu a tvořivému vyjádření. Děti se naučí správnému držení těla, základním baletním pozicím a pohybům, rozvíjejí rytmus i koncentraci. Vhodné pro začátečníky i děti s předchozí zkušeností.",
   },
 ];
 

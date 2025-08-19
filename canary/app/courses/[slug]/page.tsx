@@ -177,7 +177,8 @@ export default function CoursePage({
                     src={c.img}
                     alt={c.title}
                     fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-300"
+                    className="object-cover  object-[50%_20%] group-hover:scale-105 transition-transform duration-300"
+
                   />
                 </div>
                 <div className="p-4">

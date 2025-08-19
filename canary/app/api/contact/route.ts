@@ -12,15 +12,17 @@ export async function POST(req: Request) {
       );
     }
 
-    // SMTP config z env proměnných
-    const host = process.env.SMTP_HOST as string;
+    // ---- SMTP z env proměnných ----
+    const host = process.env.SMTP_HOST || "smtp.gmail.com";
     const port = Number(process.env.SMTP_PORT || 465);
-    const user = process.env.SMTP_USER as string;
-    const pass = process.env.SMTP_PASS as string;
+    const user = process.env.SMTP_USER; // např. tanecnicentrummirror@gmail.com
+    const pass = process.env.SMTP_PASS; // app heslo
+    const to = process.env.SMTP_TO || user;
+    const from = process.env.SMTP_FROM || user;
 
-    if (!host || !port || !user || !pass) {
+    if (!user || !pass) {
       return NextResponse.json(
-        { ok: false, error: "Chybí SMTP konfigurace na serveru." },
+        { ok: false, error: "Chybí SMTP_USER nebo SMTP_PASS." },
         { status: 500 }
       );
     }
@@ -31,9 +33,6 @@ export async function POST(req: Request) {
       secure: port === 465, // 465 = SSL
       auth: { user, pass },
     });
-
-    const to = process.env.SMTP_TO || "vasamariarich@gmail.com";
-    const from = process.env.SMTP_FROM || user;
 
     const subject = `Kontakt z webu – ${name}`;
     const text = `

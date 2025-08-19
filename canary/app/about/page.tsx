@@ -33,7 +33,6 @@ export default function AboutPage() {
         </div>
       </section>
 
-
       {/* OVERVIEW */}
       <section className="relative pb-0 pt-14 sm:pt-20">
         <div className="container mx-auto px-6">
@@ -64,10 +63,9 @@ export default function AboutPage() {
                     </p>
                   </div>
                 </div>
-
               </div>
 
-              {/* Right – Image collage (jedna hlavní + dvě menší jak v původní ukázce) */}
+              {/* Right – Image collage */}
               <div>
                 <div className="grid grid-cols-2 gap-4 items-center">
                   <div className="space-y-4">
@@ -77,18 +75,19 @@ export default function AboutPage() {
                         alt="Trénink v Mirror centru"
                         width={800}
                         height={1000}
-                        className="h-64 sm:h-72 w-full object-cover"
+                        className="h-64 sm:h-72 w-full object-cover object-[50%_20%] "
                       />
                     </div>
-                    <div className="relative w-full rounded-2xl overflow-hidden shadow-lg">
-                      <Image
-                        src="/gallery/gal-2.jpg"
-                        alt="Společenské tance – lekce"
-                        width={800}
-                        height={1000}
-                        className="h-48 sm:h-56 w-full object-cover"
-                      />
-                    </div>
+                  <div className="relative w-full rounded-2xl overflow-hidden shadow-lg">
+                    <Image
+                      src="/gallery/gal-4.jpg"
+                      alt="Společenské tance – lekce"
+                      width={800}
+                      height={1000}
+                      className="h-48 sm:h-56 w-full object-cover object-center  sm:object-[50%_30%]"
+                    />
+                  </div>
+
                   </div>
                   <div className="relative w-full rounded-2xl overflow-hidden shadow-xl">
                     <Image
@@ -96,7 +95,7 @@ export default function AboutPage() {
                       alt="Taneční vystoupení"
                       width={900}
                       height={1200}
-                      className="h-full min-h-[22rem] sm:min-h-[26rem] w-full object-cover"
+                      className="h-full min-h-[22rem] sm:min-h-[26rem] w-full object-cover object-top"
                     />
                   </div>
                 </div>
@@ -106,52 +105,49 @@ export default function AboutPage() {
         </div>
       </section>
 
-        {/* CONFERENCE (Why attend) → u nás „Proč právě MIRROR“ */}
+      {/* „Proč právě MIRROR“ */}
       <section className="relative pt-24 sm:pt-28 pb-16 sm:pb-20">
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            {/* Levý sloupec – původní „karty“, teď fotky ve stejném layoutu */}
+            {/* Levý sloupec – fotky (zachovaný layout) */}
             <div className="order-2 lg:order-1">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-4">
-                  {/* horní malá „karta“ → fotka */}
                   <div className="relative rounded-2xl overflow-hidden shadow-lg ring-1 ring-gray-200">
                     <Image
                       src="/gallery/gal-3.jpg"
                       alt="Skupinový trénink"
                       width={800}
                       height={600}
-                      className="w-full h-64 sm:h-72 object-cover"
+                      className="w-full h-64 sm:h-72 object-cover object-top"
                       priority
                     />
                   </div>
 
-                  {/* spodní malá „karta“ → fotka */}
                   <div className="relative rounded-2xl overflow-hidden shadow-lg ring-1 ring-gray-200">
                     <Image
                       src="/gallery/gal-2.jpg"
                       alt="Záběr z lekce"
                       width={800}
                       height={600}
-                      className="w-full h-48 sm:h-56 object-cover"
+                      className="w-full h-48 sm:h-56 object-cover object-top"
                     />
                   </div>
                 </div>
 
-                {/* pravý vysoký box → fotka */}
                 <div className="relative rounded-2xl overflow-hidden shadow-lg ring-1 ring-gray-200">
                   <Image
                     src="/gallery/gal-1.jpg"
                     alt="Taneční vystoupení"
                     width={900}
                     height={1200}
-                    className="w-full h-full min-h-[22rem] sm:min-h-[26rem] object-cover"
+                    className="w-full h-full min-h-[22rem] sm:min-h-[26rem] object-cover object-top"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Pravý sloupec – text beze změny */}
+            {/* Pravý sloupec – text */}
             <div className="order-1 lg:order-2">
               <p className="uppercase tracking-widest text-[#57BDDB] font-semibold">
                 Proč právě Mirror
@@ -189,12 +185,8 @@ export default function AboutPage() {
         </div>
       </section>
 
-
-     
-
-      {/* TICKETBOOK → CTA s pozadím fotkou + blur (blurujeme přímo obrázek) */}
+      {/* CTA s fotkou + blur */}
       <section className="relative">
-        {/* BG image + blur + dark */}
         <div className="absolute inset-0 -z-10">
           <Image
             src="/cta-bg.jpg"
@@ -227,7 +219,7 @@ export default function AboutPage() {
               </Link>
               <Link
                 href="/#courses"
-                className="rounded-full border border-gray-400 px-6 py-3 text-gray-600 hover:bg-white/10 transition"
+                className="rounded-full border border-gray-300 px-6 py-3 text-gray-500 hover:bg-white/10 transition"
               >
                 Prohlédnout kurzy
               </Link>
