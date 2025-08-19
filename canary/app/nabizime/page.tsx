@@ -14,10 +14,10 @@ export default function NabizimePage() {
       <section className="relative isolate">
         <div className="absolute inset-0 -z-10">
           <Image
-            src="/background.png" // můžeš změnit na jinou reprezentativní fotku
+            src="/contact1.jpg"
             alt="Nabízíme"
             fill
-            className="object-cover object-center"
+            className="object-cover object-[80%_center] md:object-center"
             priority
           />
         </div>
@@ -29,24 +29,37 @@ export default function NabizimePage() {
         </div>
       </section>
 
-      {/* Text o nabídce */}
+      {/* Text o nabídce + fotka vpravo */}
       <main className="container mx-auto px-6 py-12 sm:py-16">
-        <article className="bg-white rounded-2xl shadow-lg ring-1 ring-gray-200 p-8 max-w-3xl mx-auto">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-            Show společenských tanců pro každou příležitost
-          </h2>
-          <p className="text-gray-700 leading-relaxed mb-4">
-            Nabízíme profesionální vystoupení společenských tanců na plesech,
-            firemních večírcích, svatbách a dalších společenských událostech.
-          </p>
-          <p className="text-gray-700 leading-relaxed mb-4">
-            Program přizpůsobíme vašemu tématu a atmosféře akce – od elegantního
-            waltzu až po energickou sambu.
-          </p>
-          <p className="text-gray-700 leading-relaxed font-medium">
-            Cena dle dohody podle rozsahu vystoupení a vašich požadavků.
-          </p>
-        </article>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center max-w-6xl mx-auto">
+          {/* Textová buňka */}
+          <article className="bg-white rounded-2xl shadow-lg ring-1 ring-gray-200 p-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+              Show společenských tanců pro každou příležitost
+            </h2>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              Nabízíme profesionální vystoupení společenských tanců na plesech,
+              firemních večírcích, svatbách a dalších společenských událostech.
+            </p>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              Program přizpůsobíme vašemu tématu a atmosféře akce – od
+              elegantního waltzu až po energickou sambu.
+            </p>
+            <p className="text-gray-700 leading-relaxed font-medium">
+              Cena dle dohody podle rozsahu vystoupení a vašich požadavků.
+            </p>
+          </article>
+
+          {/* Obrázek vedle */}
+          <div className="relative w-full h-72 lg:h-96 rounded-2xl overflow-hidden shadow-lg">
+            <Image
+              src="/gallery/gal-2.jpg" // vlastní obrázek v /public
+              alt="Ukázka show"
+              fill
+              className="object-cover object-[50%_20%]"
+            />
+          </div>
+        </div>
 
         {/* Další kurzy */}
         <section className="mt-14 sm:mt-20">
@@ -65,12 +78,12 @@ export default function NabizimePage() {
                 className="group overflow-hidden rounded-xl bg-white ring-1 ring-gray-200 shadow hover:shadow-lg transition"
               >
                 <div className="relative h-40 w-full">
-                <Image
+                  <Image
                     src={c.img}
                     alt={c.title}
                     fill
                     className="object-cover object-top group-hover:scale-105 transition-transform duration-300"
-                />
+                  />
                 </div>
 
                 <div className="p-4">
