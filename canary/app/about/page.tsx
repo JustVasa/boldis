@@ -71,7 +71,7 @@ export default function AboutPage() {
                   <div className="space-y-4">
                     <div className="relative w-full rounded-2xl overflow-hidden shadow-lg">
                       <Image
-                        src="/gallery/gal-1.jpg"
+                        src="/gallery/gal-5.jpg"
                         alt="Trénink v Mirror centru"
                         width={800}
                         height={1000}
@@ -80,7 +80,7 @@ export default function AboutPage() {
                     </div>
                   <div className="relative w-full rounded-2xl overflow-hidden shadow-lg">
                     <Image
-                      src="/gallery/gal-4.jpg"
+                      src="/gallery/gal-8.jpg"
                       alt="Společenské tance – lekce"
                       width={800}
                       height={1000}
@@ -91,7 +91,7 @@ export default function AboutPage() {
                   </div>
                   <div className="relative w-full rounded-2xl overflow-hidden shadow-xl">
                     <Image
-                      src="/gallery/gal-3.jpg"
+                      src="/gallery/gal-6.jpg"
                       alt="Taneční vystoupení"
                       width={900}
                       height={1200}
@@ -115,7 +115,7 @@ export default function AboutPage() {
                 <div className="space-y-4">
                   <div className="relative rounded-2xl overflow-hidden shadow-lg ring-1 ring-gray-200">
                     <Image
-                      src="/gallery/gal-3.jpg"
+                      src="/gallery/gal-7.jpeg"
                       alt="Skupinový trénink"
                       width={800}
                       height={600}
@@ -126,11 +126,11 @@ export default function AboutPage() {
 
                   <div className="relative rounded-2xl overflow-hidden shadow-lg ring-1 ring-gray-200">
                     <Image
-                      src="/gallery/gal-2.jpg"
+                      src="/gallery/gal-3.jpg"
                       alt="Záběr z lekce"
                       width={800}
                       height={600}
-                      className="w-full h-48 sm:h-56 object-cover object-top"
+                      className="w-full h-48 sm:h-56 object-cover object-[50%_35%]"
                     />
                   </div>
                 </div>

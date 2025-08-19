@@ -9,7 +9,7 @@ export type Course = {
 export const COURSES: Course[] = [
   {
     slug: "tanecni-pro-dospele",
-    title: "Taneční kurzy pro dospělé",
+    title: "KURZY PRO DOSPĚLÉ",
     img: "/kurzy/dospele.jpg",
     short:
       "Základy i pokročilejší kroky společenských tanců – příprava na plesy, svatby i pro radost z pohybu.",
@@ -18,7 +18,7 @@ export const COURSES: Course[] = [
   },
   {
     slug: "tanecni-pro-mladez",
-    title: "Taneční kurzy pro mládež",
+    title: "TANEČNÍ KURZY PRO MLÁDEŽ",
     img: "/kurzy/mladez.jpg",
     short:
       "Styl, jistota na parketu a skvělá parta. Ideální i jako příprava na školní plesy a společenské akce.",
@@ -27,7 +27,7 @@ export const COURSES: Course[] = [
   },
   {
     slug: "latino-ladies",
-    title: "Latino Ladies",
+    title: "LATINO LADIES",
     img: "/kurzy/latino.jpg",
     short:
       "Salsa, bachata, merengue – energické lekce pro ženy v přátelské atmosféře.",
@@ -36,7 +36,7 @@ export const COURSES: Course[] = [
   },
   {
     slug: "tanecni-krouzky-pro-deti",
-    title: "Taneční kroužky pro děti",
+    title: "TANEČNÍ KROUŽEK PRO DĚTI",
     img: "/kurzy/deti.jpg",
     short:
       "Hravé lekce, rozvoj koordinace a rytmu, podpora kreativity a sebevědomí.",
@@ -45,7 +45,7 @@ export const COURSES: Course[] = [
   },
   {
     slug: "krouzek-baletu",
-    title: "Kroužek baletu",
+    title: "KROUŽEK BALETU",
     img: "/kurzy/balet.jpg",
     short:
       "Základy klasického baletu hravou formou – držení těla, koordinace, cit pro hudbu.",
@@ -54,7 +54,7 @@ export const COURSES: Course[] = [
   },
   {
     slug: "svatebni-lekce",
-    title: "Svatební lekce",
+    title: "SVATEBNÍ LEKCE",
     img: "/kurzy/svatebni.jpg",
     short:
       "První tanec na míru – choreografie, hudba i trénink podle vašich přání.",
@@ -63,7 +63,7 @@ export const COURSES: Course[] = [
   },
   {
     slug: "individualni-lekce",
-    title: "Individuální lekce",
+    title: "INDIVIDUÁLNÍ LEKCE",
     img: "/kurzy/individual.jpg",
     short:
       "Tempo, styl i náplň přesně podle vás – nejrychlejší cesta k pokroku.",

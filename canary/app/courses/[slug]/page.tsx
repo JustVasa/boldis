@@ -44,7 +44,8 @@ export default function CoursePage({
             className="object-cover object-center"
           />
         </div>
-        <div className="absolute inset-0 -z-10 bg-black/55 backdrop-blur-[2px]" />
+        {/* Tmavší a víc rozmazaný overlay */}
+        <div className="absolute inset-0 -z-10 bg-black/70 backdrop-blur-[6px]" />
 
         <div className="container mx-auto px-6 pt-36 pb-28 sm:pt-44 sm:pb-36">
           <div className="max-w-4xl mx-auto text-center">
@@ -177,8 +178,7 @@ export default function CoursePage({
                     src={c.img}
                     alt={c.title}
                     fill
-                    className="object-cover  object-[50%_20%] group-hover:scale-105 transition-transform duration-300"
-
+                    className="object-cover object-[50%_20%] group-hover:scale-105 transition-transform duration-300"
                   />
                 </div>
                 <div className="p-4">

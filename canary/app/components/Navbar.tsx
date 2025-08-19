@@ -7,12 +7,14 @@ import Image from "next/image";
 type NavItem = { href: string; label: string };
 
 const LINKS: NavItem[] = [
-  { href: "/about",     label: "O NÁS" },      // otevře novou stránku
-  { href: "/#services", label: "NABÍZÍME" },   // scroll na sekci
+  { href: "/about",     label: "O NÁS" },      
+  { href: "/nabizime",  label: "NABÍZÍME" },   // ✅ už není /#services
   { href: "/#courses",  label: "TANEČNÍ KURZY"},
   { href: "/#gallery",  label: "GALERIE" },
   { href: "/#contact",  label: "KONTAKTY" },
 ];
+
+
 
 const NAV_HEIGHT = 80; // px – výška fixního navbaru (pro mobilní offset)
 
