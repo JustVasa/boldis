@@ -1,31 +1,49 @@
+// app/courses/[slug]/page.tsx
+
 "use client";
 
 import Image from "next/image";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import Navbar from "../../components/Navbar";
-import { use, useCallback, useMemo } from "react";
-import { COURSES, getCourse } from "@/app/courses/_data";
+import { use } from "react";
+
+// ✅ Bereme data RELATIVNĚ ze stejné složky (app/courses/_data.ts)
+import { COURSES, getCourse } from "../_data";
+import type { Course } from "../_data";
 
 export default function CoursePage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
+  // Next.js canary: params je Promise → rozbalíme přes React.use()
   const { slug } = use(params);
 
-  const related = useMemo(
-    () => COURSES.filter((c) => c.slug !== slug).slice(0, 4),
-    [slug]
-  );
+  // Přesně typované: Course | undefined
+  const course: Course | undefined = getCourse(slug);
 
-  const onSubmit = useCallback((e: React.FormEvent<HTMLFormElement>) => {
+  if (!course) {
+    return (
+      <div className="relative min-h-screen overflow-x-hidden bg-gray-50">
+        <Navbar />
+        <main className="container mx-auto px-6 py-16">
+          <h1 className="text-2xl font-semibold text-gray-900">Kurz nebyl nalezen</h1>
+          <p className="mt-2 text-gray-600">
+            Zkuste se vrátit na{" "}
+            <Link className="text-[#57BDDB] underline" href="/#courses">
+              přehled kurzů
+            </Link>
+            .
+          </p>
+        </main>
+      </div>
+    );
+  }
+
+  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     alert("Děkujeme! Registrace bude dokončena po napojení plateb.");
-  }, []);
-
-  const course = getCourse(slug);
-  if (!course) return notFound();
+  };
 
   const desc = course.desc?.trim() ?? "";
 
@@ -44,7 +62,6 @@ export default function CoursePage({
             className="object-cover object-center"
           />
         </div>
-        {/* Tmavší a víc rozmazaný overlay */}
         <div className="absolute inset-0 -z-10 bg-black/70 backdrop-blur-[6px]" />
 
         <div className="container mx-auto px-6 pt-36 pb-28 sm:pt-44 sm:pb-36">
@@ -78,28 +95,26 @@ export default function CoursePage({
             <h3 className="text-xl font-semibold text-gray-900 mb-4">
               Informace o kurzu
             </h3>
+
             <dl className="space-y-4 text-gray-700">
               <div>
-                <dt className="font-medium text-gray-900">
-                  <b>Cena</b>
-                </dt>
-                <dd className="mt-1">
-                  10 lekcí: <b>1990&nbsp;Kč / osoba</b>
-                </dd>
+                <dt className="font-medium text-gray-900"><b>Cena</b></dt>
+                <dd className="mt-1">{course.price ?? "—"}</dd>
               </div>
+
               <div>
-                <dt className="font-medium text-gray-900">
-                  <b>Lektor</b>
-                </dt>
-                <dd className="mt-1">Tomáš Boldiš</dd>
+                <dt className="font-medium text-gray-900"><b>Lektor</b></dt>
+                <dd className="mt-1">{course.instructor ?? "—"}</dd>
               </div>
+
               <div>
-                <dt className="font-medium text-gray-900">
-                  <b>Detaily</b>
-                </dt>
-                <dd className="mt-1">
-                  Každý čtvrtek od <b>19:30 – 21:00</b>
-                </dd>
+                <dt className="font-medium text-gray-900"><b>Adresa</b></dt>
+                <dd className="mt-1">{course.address ?? "—"}</dd>
+              </div>
+
+              <div>
+                <dt className="font-medium text-gray-900"><b>Čas</b></dt>
+                <dd className="mt-1">{course.schedule ?? "—"}</dd>
               </div>
             </dl>
           </div>
@@ -167,33 +182,35 @@ export default function CoursePage({
           </p>
 
           <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {related.map((c) => (
-              <Link
-                key={c.slug}
-                href={`/courses/${c.slug}`}
-                className="group overflow-hidden rounded-xl bg-white ring-1 ring-gray-200 shadow hover:shadow-lg transition"
-              >
-                <div className="relative h-40 w-full">
-                  <Image
-                    src={c.img}
-                    alt={c.title}
-                    fill
-                    className="object-cover object-[50%_20%] group-hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-900 line-clamp-2">
-                    {c.title}
-                  </h3>
-                  <p className="mt-2 text-sm text-gray-600 line-clamp-2">
-                    {c.short}
-                  </p>
-                  <span className="mt-3 inline-flex items-center text-[#57BDDB] font-medium">
-                    Zjistit více <span className="ml-2">→</span>
-                  </span>
-                </div>
-              </Link>
-            ))}
+            {COURSES.filter((c) => c.slug !== slug)
+              .slice(0, 4)
+              .map((c) => (
+                <Link
+                  key={c.slug}
+                  href={`/courses/${c.slug}`}
+                  className="group overflow-hidden rounded-xl bg-white ring-1 ring-gray-200 shadow hover:shadow-lg transition"
+                >
+                  <div className="relative h-40 w-full">
+                    <Image
+                      src={c.img}
+                      alt={c.title}
+                      fill
+                      className="object-cover object-[50%_20%] group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-semibold text-gray-900 line-clamp-2">
+                      {c.title}
+                    </h3>
+                    <p className="mt-2 text-sm text-gray-600 line-clamp-2">
+                      {c.short}
+                    </p>
+                    <span className="mt-3 inline-flex items-center text-[#57BDDB] font-medium">
+                      Zjistit více <span className="ml-2">→</span>
+                    </span>
+                  </div>
+                </Link>
+              ))}
           </div>
 
           <div className="mt-8 text-center">

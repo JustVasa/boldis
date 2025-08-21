@@ -4,17 +4,23 @@ import { useEffect } from "react";
 
 export default function ScrollManager() {
   useEffect(() => {
-    // Vypnout nativní obnovu pozice a po prvním mountu JEN nahoru (ignoruj hash)
+    // 1) Vypnout automatickou obnovu scrolu prohlížeče
     let prev: ScrollRestoration | undefined;
     if ("scrollRestoration" in history) {
       prev = history.scrollRestoration;
       history.scrollRestoration = "manual";
     }
 
-    // vždy po reloadu/otevření -> úplně nahoru
+    // 2) PŘI PRVNÍM NAČTENÍ/REFRESHI:
+    //    - pokud je v URL hash (/#something), ihned ho odstraň
+    //    - vždy skoč úplně nahoru
+    if (window.location.hash) {
+      const cleanUrl = window.location.pathname + window.location.search;
+      history.replaceState(null, "", cleanUrl);
+    }
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
 
-    // handler na změnu hashe (klik v menu, ruční změna apod.)
+    // 3) Plynulý scroll při změně hashe (klik v menu)
     const onHashChange = () => {
       const id = window.location.hash.replace("#", "");
       if (!id) return;
