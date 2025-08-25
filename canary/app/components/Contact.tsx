@@ -161,7 +161,7 @@ export default function Contact() {
                   <li className="flex items-center">
                     <FaPhoneAlt className="text-white text-2xl mr-4" />
                     <a href="tel:+420123456789" className="hover:underline">
-                      +420 123 456 789
+                      +420 775 234 140
                     </a>
                   </li>
                   <li className="flex items-center">
