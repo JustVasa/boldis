@@ -37,7 +37,7 @@ export default function Promo() {
               Nabízíme taneční kurzy pro dospělé, studenty i děti. Přijďte si zatančit s námi! 
             </p>
             <Link
-              href="/contact"
+              href="./about"
               className="theme-btn inline-flex items-center mt-6 px-6 py-3 bg-[#57BDDB] text-white font-semibold rounded-full shadow-lg hover:bg-[#3BA7C7] transition-all"
             >
               O NÁS
