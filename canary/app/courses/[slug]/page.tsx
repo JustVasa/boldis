@@ -155,6 +155,39 @@ export default function CoursePage({
   const { slug } = use(params);
   const course: Course | undefined = getCourse(slug);
 
+  // ---------- 🧠 HOOKS MUSÍ BÝT NEPODMÍNĚNÉ (nahoře) ----------
+  // Stav formuláře:
+  const [category, setCategory] = useState<string>("");
+  const [note, setNote] = useState<string>(""); // pro individuální lekce
+
+  // Stav modalu/QR a pomocných textů:
+  const [showQr, setShowQr] = useState(false);
+  const [qrUrl, setQrUrl] = useState<string>("");
+  const [fullMessage, setFullMessage] = useState<string>("");
+  const [accountString, setAccountString] = useState<string>(RECEIVER_ACCOUNT);
+  const [lastForm, setLastForm] = useState<{
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    category?: string | null;
+    courseTitle: string;
+    note?: string | null;
+  } | null>(null);
+
+  // Bezpečně zjistit cenu i když course zatím není:
+  const priceAmount = useMemo(() => {
+    const price = course?.price ?? undefined;
+    const a = parseAmountNearCurrency(price);
+    return a ?? parseFallbackAmount(price);
+  }, [course?.price]);
+
+  // Odvozené příznaky (bezpečné i bez course):
+  const slugVal = course?.slug ?? "";
+  const isKidsCourse = slugVal === "tanecni-krouzky-pro-deti";
+  const isIndividualCourse = slugVal === "individualni-lekce";
+
+  // ---------- 🧠 HOOKS JSOU VŠECKY VÝŠE. TEPRVE TEĎ MŮŽE BÝT EARLY RETURN ----------
   if (!course) {
     return (
       <div className="relative min-h-screen overflow-x-hidden bg-gray-50">
@@ -173,35 +206,7 @@ export default function CoursePage({
     );
   }
 
-  const isKidsCourse = course.slug === "tanecni-krouzky-pro-deti";
-  const isIndividualCourse = course.slug === "individualni-lekce";
-
-  // Form state
-  const [category, setCategory] = useState<string>("");
-  const [note, setNote] = useState<string>("");
-
-  // QR modal state + data pro kopírování a hotovost
-  const [showQr, setShowQr] = useState(false);
-  const [qrUrl, setQrUrl] = useState<string>("");
-  const [fullMessage, setFullMessage] = useState<string>("");
-  const [accountString, setAccountString] = useState<string>(RECEIVER_ACCOUNT);
-  const [lastForm, setLastForm] = useState<{
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-    category?: string | null;
-    courseTitle: string;
-    note?: string | null;
-  } | null>(null);
-
   const desc = course.desc?.trim() ?? "";
-
-  // 💰 Částka – přednostně číslo před "Kč/CZK", jinak fallback: největší číslo
-  const priceAmount = useMemo(() => {
-    const a = parseAmountNearCurrency(course.price ?? undefined);
-    return a ?? parseFallbackAmount(course.price ?? undefined);
-  }, [course.price]);
 
   const copy = async (text: string) => {
     try {
@@ -212,7 +217,7 @@ export default function CoursePage({
     }
   };
 
-  // Odeslání emailu (hotově) – beze změny
+  // Odeslání emailu (hotově)
   const sendCashEmail = async (data: {
     firstName: string;
     lastName: string;
@@ -250,8 +255,9 @@ export default function CoursePage({
       if (!res.ok || !json.ok) throw new Error(json.error || "Odeslání selhalo.");
       alert("Registrace pro platbu hotově byla odeslána. Děkujeme!");
       setShowQr(false);
-    } catch (err: any) {
-      alert(`Nepodařilo se odeslat email: ${err?.message || "chyba"}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(`Nepodařilo se odeslat email: ${msg}`);
     }
   };
 
@@ -307,7 +313,7 @@ export default function CoursePage({
         ? String(data.get("note")).trim()
         : "";
 
-    // Pokud jde o INDIVIDUÁLNÍ LEKCE → pošleme info mailem (o požadovaných tancích)
+    // U individuálu pošli i informační e-mail lektorovi
     if (isIndividualCourse) {
       try {
         await sendInterestEmail({
@@ -318,19 +324,16 @@ export default function CoursePage({
           note: noteText,
           courseTitle: course.title,
         });
-        // Nepadá-li cena / nebo nechceš QR u individuálu, můžeš tady QR úplně vynechat:
-        // alert("Zpráva byla úspěšně odeslána. Ozveme se vám s termínem.");
-        // return;
-      } catch (err: any) {
-        alert(`Nepodařilo se odeslat zprávu lektorovi: ${err?.message || "chyba"}`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        alert(`Nepodařilo se odeslat zprávu lektorovi: ${msg}`);
       }
     }
 
     // částka z ceníku
     const amount = priceAmount ?? 0;
     if (!amount || amount <= 0) {
-      // Pokud bys pro individuál nechtěl QR vůbec, můžeš tento blok ignorovat.
-      // Pro unitární chování jen upozorníme:
+      // Pokud bys u individuálu QR nechtěl, můžeš se tady vrátit.
       // alert("Nepodařilo se určit částku z ceníku. QR kód nebude vygenerován.");
       // return;
     }
@@ -585,7 +588,7 @@ export default function CoursePage({
                 <Link
                   key={c.slug}
                   href={`/courses/${c.slug}`}
-                  className="group overflow-hidden rounded-xl bg-white ring-1 ring-gray-200 shadow hover:shadow-lg transition"
+                  className="group overflow-hidden rounded-2xl bg-white ring-1 ring-gray-200 shadow hover:shadow-lg transition"
                 >
                   <div className="relative h-40 w-full">
                     <Image
@@ -645,6 +648,7 @@ export default function CoursePage({
               </button>
 
               <div className="flex justify-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={qrUrl}
                   alt="QR kód pro platbu"
