@@ -9,7 +9,7 @@ const poppins = Poppins({
 });
 
 export const metadata = {
-  title: "Taneční centrum Mirror",
+  title: "TC - Mirror",
   description: "Kurzy tance v Mirror centru",
   icons: {
     icon: "/favicon.ico",
