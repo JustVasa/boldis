@@ -1,5 +1,7 @@
+// app/layout.tsx
 import "./globals.css";
 import { Poppins } from "next/font/google";
+import type { Metadata } from "next";
 import ScrollManager from "./components/ScrollManager";
 
 const poppins = Poppins({
@@ -8,16 +10,18 @@ const poppins = Poppins({
   variable: "--font-poppins",
 });
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Taneční centrum - Mirror",
   description: "Kurzy tance v Mirror centru",
+  themeColor: "#57BDDB",
   icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/apple-touch-icon.png",
+    // verze v query stringu spolehlivě prorazí cache
+    icon: [{ url: "/favicon.ico?v=2" }],
+    shortcut: [{ url: "/favicon.ico?v=2" }],
+    // apple ikonku nech jen pokud soubor opravdu existuje v /public
+    // apple: [{ url: "/apple-touch-icon.png?v=2", sizes: "180x180" }],
   },
 };
-
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
