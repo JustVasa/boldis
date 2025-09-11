@@ -1,4 +1,4 @@
-// app/layout.tsx
+// canary/app/layout.tsx
 import "./globals.css";
 import { Poppins } from "next/font/google";
 import type { Metadata } from "next";
@@ -15,17 +15,21 @@ export const metadata: Metadata = {
   description: "Kurzy tance v Mirror centru",
   themeColor: "#57BDDB",
   icons: {
-    // verze v query stringu spolehlivě prorazí cache
-    icon: [{ url: "/favicon.ico?v=2" }],
-    shortcut: [{ url: "/favicon.ico?v=2" }],
-    // apple ikonku nech jen pokud soubor opravdu existuje v /public
-    // apple: [{ url: "/apple-touch-icon.png?v=2", sizes: "180x180" }],
+    // explicitně s verzí kvůli cache
+    icon: [{ url: "/favicon.ico?v=3" }],
+    shortcut: [{ url: "/favicon.ico?v=3" }],
+    // pokud nemáš apple-touch-icon.png v canary/public, NEch prázdné
+    // apple: [{ url: "/apple-touch-icon.png?v=3", sizes: "180x180" }],
   },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="cs">
+      {/* tvrdý link do <head> pro jistotu (přebije cacheované/neviditelné odkazy) */}
+      <head>
+        <link rel="icon" href="/favicon.ico?v=3" />
+      </head>
       <body className={poppins.variable}>
         {children}
         <ScrollManager />
