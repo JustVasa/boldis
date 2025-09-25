@@ -15,20 +15,19 @@ export const metadata: Metadata = {
   description: "Kurzy tance v Mirror centru",
   themeColor: "#57BDDB",
   icons: {
-    // explicitně s verzí kvůli cache
-    icon: [{ url: "/favicon.ico?v=3" }],
-    shortcut: [{ url: "/favicon.ico?v=3" }],
-    // pokud nemáš apple-touch-icon.png v canary/public, NEch prázdné
-    // apple: [{ url: "/apple-touch-icon.png?v=3", sizes: "180x180" }],
+    // použijeme NOVÝ název souboru (bez ?v=...)
+    icon: [{ url: "/favicon-2025.ico" }],
+    shortcut: [{ url: "/favicon-2025.ico" }],
   },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="cs">
-      {/* tvrdý link do <head> pro jistotu (přebije cacheované/neviditelné odkazy) */}
       <head>
-        <link rel="icon" href="/favicon.ico?v=3" />
+        {/* tvrdý link do head + type pomáhá Chrome/Safari */}
+        <link rel="icon" href="/favicon-2025.ico" sizes="any" />
+        <link rel="shortcut icon" href="/favicon-2025.ico" />
       </head>
       <body className={poppins.variable}>
         {children}

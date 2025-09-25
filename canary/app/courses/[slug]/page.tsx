@@ -1,5 +1,4 @@
 // app/courses/[slug]/page.tsx
-
 "use client";
 
 import Image from "next/image";
@@ -186,6 +185,7 @@ export default function CoursePage({
   const slugVal = course?.slug ?? "";
   const isKidsCourse = slugVal === "tanecni-krouzky-pro-deti";
   const isIndividualCourse = slugVal === "individualni-lekce";
+  const isLatinoCourse = slugVal === "latino-ladies"; // 👈 NOVÉ
 
   // ---------- 🧠 HOOKS JSOU VŠECKY VÝŠE. TEPRVE TEĎ MŮŽE BÝT EARLY RETURN ----------
   if (!course) {
@@ -236,6 +236,7 @@ export default function CoursePage({
       `Email: ${data.email}`,
       `Tel: ${data.phone}`,
       isKidsCourse && data.category ? `Kategorie: ${data.category}` : "",
+      isLatinoCourse && data.category ? `Kategorie: ${data.category}` : "", // 👈 NOVÉ
       isIndividualCourse && data.note ? `Zpráva klienta: ${data.note}` : "",
     ].filter(Boolean);
     const message = messageLines.join("\n");
@@ -305,7 +306,7 @@ export default function CoursePage({
     const email = String(data.get("email") || "").trim();
     const phone = String(data.get("phone") || "").trim();
     const selectedCategory =
-      (data.get("category") as string | null) && isKidsCourse
+      (data.get("category") as string | null) && (isKidsCourse || isLatinoCourse)
         ? String(data.get("category"))
         : null;
     const noteText =
@@ -332,11 +333,6 @@ export default function CoursePage({
 
     // částka z ceníku
     const amount = priceAmount ?? 0;
-    if (!amount || amount <= 0) {
-      // Pokud bys u individuálu QR nechtěl, můžeš se tady vrátit.
-      // alert("Nepodařilo se určit částku z ceníku. QR kód nebude vygenerován.");
-      // return;
-    }
 
     // účet → accountNumber + bankCode
     let accountNumber = "";
@@ -361,7 +357,7 @@ export default function CoursePage({
       lastName,
       email,
       phone,
-      category: isKidsCourse ? selectedCategory : null,
+      category: (isKidsCourse || isLatinoCourse) ? selectedCategory : null,
     });
 
     // QR zpráva: <KOD>(-<KAT>) | email | telefon
@@ -369,7 +365,7 @@ export default function CoursePage({
       courseTitle: course.title,
       email,
       phone,
-      category: isKidsCourse ? selectedCategory : null,
+      category: (isKidsCourse || isLatinoCourse) ? selectedCategory : null,
     });
 
     // QR URL (PNG) přes Paylibo
@@ -391,7 +387,7 @@ export default function CoursePage({
       lastName,
       email,
       phone,
-      category: isKidsCourse ? selectedCategory : null,
+      category: (isKidsCourse || isLatinoCourse) ? selectedCategory : null,
       courseTitle: course.title,
       note: isIndividualCourse ? noteText : "",
     });
@@ -522,13 +518,52 @@ export default function CoursePage({
                     <option value="" disabled>
                       Vyberte věkovou kategorii…
                     </option>
-                    <option value="3-6">3–6 let</option>
-                    <option value="7-9">7–9 let</option>
-                    <option value="10-14">10–14 let</option>
+                    <option value="3-6-u">3–6 let (úterý)</option>
+                    <option value="3-6-c">3–6 let (čtvrtek)</option>
+                    <option value="7-12-u">7–12 let (úterý)</option>
+                    <option value="7-12-c">7–12 let (čtvrtek)</option>
                   </select>
                   {/* šipka */}
                   <svg
                     className="pointer-events-none absolute right-3 top-[38px] h-5 w-5 -translate-y-1/2 text-gray-500"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M5.23 7.21a.75.75 0 011.06.02L10 10.18l3.71-2.95a.75.75 0 111.04 1.08l-4.24 3.37a.75.75 0 01-.94 0L5.21 8.31a.75.75 0 01.02-1.1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+              )}
+
+              {isLatinoCourse && (
+                <div className="relative">
+                  <label htmlFor="category" className="block text-sm font-medium text-gray-900 mb-1">
+                    Den konání <span className="text-red-600">*</span>
+                  </label>
+                  <select
+                    id="category"
+                    name="category"
+                    required
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className={`w-full rounded-lg border border-gray-300 bg-white px-3 py-2 appearance-none pr-10 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB] ${
+                      category ? "text-gray-900" : "text-gray-400"
+                    }`}
+                    aria-label="Den konání"
+                  >
+                    <option value="" disabled>
+                      Vyberte den…
+                    </option>
+                    <option value="ut">Úterý</option>
+                    <option value="ct">Čtvrtek</option>
+                  </select>
+                  {/* šipka */}
+                  <svg
+                    className="pointer-events-none absolute right-3 top={[38]}px h-5 w-5 -translate-y-1/2 text-gray-500"
                     viewBox="0 0 20 20"
                     fill="currentColor"
                     aria-hidden="true"

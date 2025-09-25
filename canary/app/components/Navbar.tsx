@@ -7,9 +7,10 @@ import Image from "next/image";
 type NavItem = { href: string; label: string };
 
 const LINKS: NavItem[] = [
-  { href: "/about",     label: "O NÁS" },      
-  { href: "/nabizime",  label: "NABÍZÍME" },   // ✅ už není /#services
+  { href: "/about",     label: "O NÁS" },
+  { href: "/nabizime",  label: "NABÍZÍME" },
   { href: "/#courses",  label: "TANEČNÍ KURZY"},
+  { href: "/rozvrh",    label: "ROZVRH" },
   { href: "/#gallery",  label: "GALERIE" },
   { href: "/#contact",  label: "KONTAKTY" },
 ];
