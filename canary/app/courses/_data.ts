@@ -18,7 +18,7 @@ export const COURSES: Course[] = [
     img: "/kurzy/dospele.jpg",
     short: "Základy i pokročilejší kroky společenských tanců – příprava na plesy, svatby i pro radost z pohybu.",
     desc: "Chcete se naučit tančit a zároveň si užít společné chvíle plné pohybu a zábavy? Naše kurzy pro dospělé jsou otevřené všem, kteří chtějí zvládnout základní i pokročilejší kroky společenských tanců. Pod vedením zkušeného profesionála Tomáše Boldiše vás naučíme standardní i latinskoamerické tance jako waltz, tango, valčík, cha-cha, rumba, jive a další. Lekce kladou důraz na správné držení těla, rytmus a spolupráci s partnerem. Kurz je vhodný pro všechny, kdo chtějí tanec zažít jako radostný a společenský zážitek – ať už pro plesy, svatby, nebo jen tak pro pohyb a odreagování.",
-    price: "10 lekcí: 1990 Kč / osoba",
+    price: "10 lekcí: 2500 Kč / osoba",
     address: "Křenov 63, 569 22 Křenov",
     schedule: "Čtvrtek 19:30–21:00",
     instructor: "Tomáš Boldiš",
