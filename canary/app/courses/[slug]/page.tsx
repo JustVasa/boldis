@@ -1,9 +1,10 @@
+// app/courses/[slug]/page.tsx
 "use client";
 
 import Image from "next/image";
 import Link from "next/link";
 import Navbar from "../../components/Navbar";
-import { use, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 
 import { COURSES, getCourse } from "../_data";
 import type { Course } from "../_data";
@@ -33,6 +34,10 @@ function placeForDay(day?: string | null): string | null {
   if (day === "ct") return THU_ADDRESS;
   return null;
 }
+
+/** ⏱️ Cooldown proti dvojkliku u hotově registrace */
+const CASH_COOLDOWN_MS = 10_000; // 10 s
+const CASH_COOLDOWN_KEY = "cashCooldownUntil";
 
 /** Rozparsuje "prefix-číslo/kód" → { accountNumber, bankCode } */
 function splitCzAccount(acc: string): { accountNumber: string; bankCode: string } {
@@ -207,6 +212,22 @@ export default function CoursePage({
     note?: string | null;
   } | null>(null);
 
+  // ⏱️ Stav a logika cooldownu pro "hotově" odeslání
+  const [isSendingCash, setIsSendingCash] = useState(false);
+  const [cashCooldown, setCashCooldown] = useState<number>(0); // sekundy zbývající
+
+  useEffect(() => {
+    // načti případný běžící cooldown (sdílený napříč modalem/stránkou)
+    const tick = () => {
+      const until = Number(localStorage.getItem(CASH_COOLDOWN_KEY) || "0");
+      const leftMs = Math.max(0, until - Date.now());
+      setCashCooldown(Math.ceil(leftMs / 1000));
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
   // Základní cena vyčtená z popisku (fallback pro jiné kurzy)
   const parsedPriceAmount = useMemo(() => {
     const price = course?.price ?? undefined;
@@ -252,7 +273,7 @@ export default function CoursePage({
     }
   };
 
-  // Odeslání emailu (hotově)
+  // Odeslání emailu (hotově) – s ochranou proti vícenásobnému odeslání
   const sendCashEmail = async (data: {
     firstName: string;
     lastName: string;
@@ -264,6 +285,18 @@ export default function CoursePage({
     place?: string | null;
     note?: string | null;
   }) => {
+    // pokud už odesíláme nebo běží cooldown, skonči
+    if (isSendingCash) return;
+    const until = Number(localStorage.getItem(CASH_COOLDOWN_KEY) || "0");
+    const leftMs = until - Date.now();
+    if (leftMs > 0) {
+      const leftSec = Math.ceil(leftMs / 1000);
+      alert(`Žádost už byla odeslána. Zkuste to prosím znovu za ${leftSec} s.`);
+      return;
+    }
+
+    setIsSendingCash(true);
+
     const name = `${data.firstName} ${data.lastName}`.trim();
     const messageLines = [
       `Registrace kurzu (platba hotově na místě)`,
@@ -287,11 +320,18 @@ export default function CoursePage({
       });
       const json = await res.json();
       if (!res.ok || !json.ok) throw new Error(json.error || "Odeslání selhalo.");
+
+      // nastavit cooldown po úspěchu
+      const nextAllowed = Date.now() + CASH_COOLDOWN_MS;
+      localStorage.setItem(CASH_COOLDOWN_KEY, String(nextAllowed));
+
       alert("Registrace pro platbu hotově byla odeslána. Děkujeme!");
       setShowQr(false);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       alert(`Nepodařilo se odeslat email: ${msg}`);
+    } finally {
+      setIsSendingCash(false);
     }
   };
 
@@ -590,7 +630,7 @@ export default function CoursePage({
                   </div>
 
                   <div className="relative">
-                    <label htmlFor="day" className="block text-sm font-medium text-gray-900 mb-1">
+                    <label htmlFor="day" className="block text sm font-medium text-gray-900 mb-1">
                       Den konání <span className="text-red-600">*</span>
                     </label>
                     <select
@@ -794,13 +834,21 @@ export default function CoursePage({
                 </p>
               </div>
 
-              {/* Hotově na místě */}
+              {/* Hotově na místě – tlačítko s cooldownem */}
               {lastForm && (
                 <button
                   onClick={() => sendCashEmail(lastForm)}
-                  className="mt-6 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 font-semibold hover:bg-gray-50 transition"
+                  disabled={isSendingCash || cashCooldown > 0}
+                  aria-disabled={isSendingCash || cashCooldown > 0}
+                  aria-busy={isSendingCash}
+                  className={`mt-6 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 font-semibold transition
+                    ${isSendingCash || cashCooldown > 0 ? "opacity-60 cursor-not-allowed" : "hover:bg-gray-50"}`}
                 >
-                  Registrovat a zaplatit hotově na místě
+                  {isSendingCash
+                    ? "Odesílám…"
+                    : cashCooldown > 0
+                      ? `Znovu za ${cashCooldown}s`
+                      : "Registrovat a zaplatit hotově na místě"}
                 </button>
               )}
             </div>
