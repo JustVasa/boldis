@@ -4,7 +4,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import Navbar from "../../components/Navbar";
-import { use, useEffect, useMemo, useState } from "react";
+import { use, useMemo, useState } from "react";
 
 import { COURSES, getCourse } from "../_data";
 import type { Course } from "../_data";
@@ -38,12 +38,8 @@ function placeForDay(day?: string | null): string | null {
   return null;
 }
 
-/** ⏱️ Cooldown proti dvojkliku u hotově registrace – (už neukazujeme tlačítko v modalu, ale logiku necháme pro jistotu) */
-const CASH_COOLDOWN_MS = 10_000; // 10 s
-const CASH_COOLDOWN_KEY = "cashCooldownUntil";
-
-/** ⏳ Krátké zpoždění reakce na klik "Registrovat" (anti-mash) */
-const SUBMIT_DELAY_MS = 800;
+/** ⏳ Delay zámek tlačítka proti dvojkliku */
+const SUBMIT_DELAY_MS = 1500;
 
 /** Utils */
 function todayStart(): Date {
@@ -254,7 +250,6 @@ export default function CoursePage({
   const [note, setNote] = useState<string>("");
 
   const [paymentMethod, setPaymentMethod] = useState<"bank" | "cash" | "">("");
-
   const [customRemaining, setCustomRemaining] = useState<number>(TOTAL_LESSONS);
 
   const [showQr, setShowQr] = useState(false);
@@ -263,35 +258,9 @@ export default function CoursePage({
   const [qrUrl, setQrUrl] = useState<string>("");
   const [fullMessage, setFullMessage] = useState<string>("");
   const [accountString, setAccountString] = useState<string>(RECEIVER_ACCOUNT);
-  const [lastForm, setLastForm] = useState<{
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-    courseTitle: string;
-    age?: string | null;
-    day?: string | null;
-    place?: string | null;
-    note?: string | null;
-  } | null>(null);
 
-  // ⏱️ Cooldown stav (ponecháno pro bezpečí, i když tlačítko v modalu už není)
-  const [isSendingCash, setIsSendingCash] = useState(false);
-  const [cashCooldown, setCashCooldown] = useState<number>(0);
-
-  /** ⏳ stav krátkého zpoždění submitu */
-  const [submitDelayActive, setSubmitDelayActive] = useState(false);
-
-  useEffect(() => {
-    const tick = () => {
-      const until = Number(localStorage.getItem(CASH_COOLDOWN_KEY) || "0");
-      const leftMs = Math.max(0, until - Date.now());
-      setCashCooldown(Math.ceil(leftMs / 1000));
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, []);
+  // 🧷 zámek tlačítka
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Základní cena vyčtená z popisku (fallback pro jiné kurzy)
   const parsedPriceAmount = useMemo(() => {
@@ -416,7 +385,7 @@ export default function CoursePage({
 
     const message = lines.join("\n");
 
-    const payload: Record<string, any> = {
+    const payload: Record<string, unknown> = {
       name,
       phone,
       email,
@@ -436,7 +405,7 @@ export default function CoursePage({
     };
 
     if (paymentMethod === "bank" && qrUrl) {
-      payload.qrUrl = qrUrl; // server si podle ní stáhne PNG a pošle jako přílohu/inline
+      (payload as Record<string, unknown>).qrUrl = qrUrl; // server si podle ní stáhne PNG a pošle jako přílohu/inline
     }
 
     const res = await fetch("/api/contact", {
@@ -451,14 +420,9 @@ export default function CoursePage({
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // --- krátké zpoždění reakce na klik ---
-    if (submitDelayActive) return;
-    setSubmitDelayActive(true);
-    try {
-      await new Promise((r) => setTimeout(r, SUBMIT_DELAY_MS));
-    } catch (_) {
-      // ignore
-    }
+    // zámek proti vícenásobnému kliku
+    if (isSubmitting) return;
+    setIsSubmitting(true);
 
     const data = new FormData(e.currentTarget);
     const firstName = String(data.get("firstName") || "").trim();
@@ -472,20 +436,20 @@ export default function CoursePage({
 
     if (!paymentMethod) {
       alert("Vyberte prosím způsob platby (Převodem / Hotově).");
-      setSubmitDelayActive(false);
+      setTimeout(() => setIsSubmitting(false), SUBMIT_DELAY_MS);
       return;
     }
 
     // Validace dle typu
     if (isKidsCourse) {
-      if (!selectedAge) { alert("Vyberte prosím věkovou kategorii."); setSubmitDelayActive(false); return; }
-      if (!selectedDay) { alert("Vyberte prosím den konání (Úterý/Čtvrtek)."); setSubmitDelayActive(false); return; }
-      if (remainingAll <= 0) { alert("Pro zvolený den už v tomto období nezbývá žádná lekce k registraci."); setSubmitDelayActive(false); return; }
+      if (!selectedAge) { alert("Vyberte prosím věkovou kategorii."); setTimeout(() => setIsSubmitting(false), SUBMIT_DELAY_MS); return; }
+      if (!selectedDay) { alert("Vyberte prosím den konání (Úterý/Čtvrtek)."); setTimeout(() => setIsSubmitting(false), SUBMIT_DELAY_MS); return; }
+      if (remainingAll <= 0) { alert("Pro zvolený den už v tomto období nezbývá žádná lekce k registraci."); setTimeout(() => setIsSubmitting(false), SUBMIT_DELAY_MS); return; }
     } else if (isBalletCourse || isLatinoCourse) {
-      if (!selectedDay) { alert("Vyberte prosím den konání (Úterý/Čtvrtek)."); setSubmitDelayActive(false); return; }
-      if (remainingAll <= 0) { alert("Pro zvolený den už v tomto období nezbývá žádná lekce k registraci."); setSubmitDelayActive(false); return; }
+      if (!selectedDay) { alert("Vyberte prosím den konání (Úterý/Čtvrtek)."); setTimeout(() => setIsSubmitting(false), SUBMIT_DELAY_MS); return; }
+      if (remainingAll <= 0) { alert("Pro zvolený den už v tomto období nezbývá žádná lekce k registraci."); setTimeout(() => setIsSubmitting(false), SUBMIT_DELAY_MS); return; }
     } else {
-      if (remainingAll <= 0) { alert("Zadejte prosím kladný počet zbývajících lekcí."); setSubmitDelayActive(false); return; }
+      if (remainingAll <= 0) { alert("Zadejte prosím kladný počet zbývajících lekcí."); setTimeout(() => setIsSubmitting(false), SUBMIT_DELAY_MS); return; }
     }
 
     // účet → accountNumber + bankCode
@@ -497,7 +461,7 @@ export default function CoursePage({
       bankCode = parts.bankCode;
     } catch {
       alert("Chyba v čísle účtu. Zkontroluj formát, např. 123456789/0100.");
-      setSubmitDelayActive(false);
+      setTimeout(() => setIsSubmitting(false), SUBMIT_DELAY_MS);
       return;
     }
 
@@ -560,37 +524,26 @@ export default function CoursePage({
         remaining: remainingAll,
         payable: payableAll,
       });
-    } catch (err: any) {
-      alert(`Nepodařilo se odeslat potvrzení: ${err?.message || err}`);
-      setSubmitDelayActive(false);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(`Nepodařilo se odeslat potvrzení: ${msg}`);
+      setTimeout(() => setIsSubmitting(false), SUBMIT_DELAY_MS);
       return;
     }
 
     // Stav pro modaly
     setFullMessage(full);
     setAccountString(RECEIVER_ACCOUNT);
-    setLastForm({
-      firstName,
-      lastName,
-      email,
-      phone,
-      courseTitle: course.title,
-      age: isKidsCourse ? selectedAge : null,
-      day: hasDaySelect ? selectedDay : null,
-      place: selectedPlace,
-    });
 
     if (paymentMethod === "bank") {
       setQrUrl(url);
       setShowQr(true);
     } else {
-      // hotově
-      const nextAllowed = Date.now() + CASH_COOLDOWN_MS;
-      localStorage.setItem(CASH_COOLDOWN_KEY, String(nextAllowed));
       setShowSuccess(true);
     }
 
-    setSubmitDelayActive(false);
+    // uvolníme zámek s malým zpožděním (ochrana proti spam kliku)
+    setTimeout(() => setIsSubmitting(false), SUBMIT_DELAY_MS);
   };
 
   return (
@@ -796,9 +749,6 @@ export default function CoursePage({
                       <option value="ut">Úterý</option>
                       <option value="ct">Čtvrtek</option>
                     </select>
-                    <svg className="pointer-events-none absolute right-3 top-[38px] h-5 w-5 -translate-y-1/2 text-gray-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.18l3.71-2.95a.75.75 0 111.04 1.08l-4.24 3.37a.75.75 0 01-.94 0L5.21 8.31a.75.75 0 01.02-1.1z" clipRule="evenodd"/>
-                    </svg>
                   </div>
 
                   {day && (
@@ -827,7 +777,7 @@ export default function CoursePage({
                       required
                       value={day}
                       onChange={(e) => setDay(e.target.value)}
-                      className={`w-full rounded-lg border border-gray-300 bg-white px-3 py-2 appearance-none pr  -10 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB] ${day ? "text-gray-900" : "text-gray-400"}`}
+                      className={`w-full rounded-lg border border-gray-300 bg-white px-3 py-2 appearance-none pr-10 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB] ${day ? "text-gray-900" : "text-gray-400"}`}
                       aria-label="Den konání"
                     >
                       <option value="" disabled>Vyberte den…</option>
@@ -898,7 +848,7 @@ export default function CoursePage({
               <div className="space-y-2">
                 <p className="text-sm font-medium text-gray-900">Způsob platby <span className="text-red-600">*</span></p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className={`flex items-center gap-3 rounded-lg border text-gray-500 px-3 py-2 cursor-pointer ${paymentMethod === "bank" ? "border-[#57BDDB] ring-2 ring-[#57BDDB]" : "border-gray-300"}`}>
+                  <label className={`flex items-center gap-3 rounded-lg text-gray-600 border px-3 py-2 cursor-pointer ${paymentMethod === "bank" ? "border-[#57BDDB] ring-2 ring-[#57BDDB]" : "border-gray-300"}`}>
                     <input
                       type="radio"
                       name="paymentMethod"
@@ -908,7 +858,7 @@ export default function CoursePage({
                     />
                     <span>Převodem na účet</span>
                   </label>
-                  <label className={`flex items-center gap-3 rounded-lg border text-gray-500 px-3 py-2 cursor-pointer ${paymentMethod === "cash" ? "border-[#57BDDB] ring-2 ring-[#57BDDB]" : "border-gray-300"}`}>
+                  <label className={`flex items-center gap-3 rounded-lg text-gray-600 border px-3 py-2 cursor-pointer ${paymentMethod === "cash" ? "border-[#57BDDB] ring-2 ring-[#57BDDB]" : "border-gray-300"}`}>
                     <input
                       type="radio"
                       name="paymentMethod"
@@ -923,12 +873,13 @@ export default function CoursePage({
 
               <button
                 type="submit"
-                disabled={submitDelayActive}
-                aria-disabled={submitDelayActive}
+                disabled={isSubmitting}
+                aria-disabled={isSubmitting}
+                aria-busy={isSubmitting}
                 className={`w-full rounded-lg px-4 py-3 text-white font-semibold shadow transition
-                  ${submitDelayActive ? "bg-[#57BDDB]/60 cursor-not-allowed" : "bg-[#57BDDB] hover:bg-[#3BA7C7]"}`}
+                  ${isSubmitting ? "bg-[#3BA7C7] cursor-not-allowed opacity-80" : "bg-[#57BDDB] hover:bg-[#3BA7C7]"}`}
               >
-                Registrovat
+                {isSubmitting ? "Odesílám…" : "Registrovat"}
               </button>
               <p className="text-xs text-gray-500 mt-2">
                 První lekce je zkušební zdarma. Uzávěrka registrace je vždy do půlnoci před dnem lekce.
