@@ -16,13 +16,16 @@ const CURRENCY = "CZK";
 /** 🗓️ Termín dětských skupin a baletu (informační text) */
 const KIDS_TERM_LABEL = "14. 10. – 16. 12.";
 
-/** 💸 Ceník dětských kategorií (pro QR i náhled ceny) */
+/** 📅 Počet lekcí v kurzu (výchozí pro paušální ceny) */
+const TOTAL_LESSONS = 10;
+
+/** 💸 Ceník dětských kategorií (za 10 lekcí) */
 const KIDS_PRICES: Record<"3-6" | "7-12", number> = {
-  "3-6": 1300,
-  "7-12": 1500,
+  "3-6": 1800,
+  "7-12": 2000,
 };
 
-/** 💸 Balet – pevná cena */
+/** 💸 Balet – pevná cena (za 10 lekcí) */
 const BALLET_PRICE = 1500;
 
 /** 📍 Adresy podle dne (Út / Čt) – pro děti, balet, latino */
@@ -35,9 +38,22 @@ function placeForDay(day?: string | null): string | null {
   return null;
 }
 
-/** ⏱️ Cooldown proti dvojkliku u hotově registrace */
+/** ⏱️ Cooldown proti dvojkliku u hotově registrace – (už neukazujeme tlačítko v modalu, ale logiku necháme pro jistotu) */
 const CASH_COOLDOWN_MS = 10_000; // 10 s
 const CASH_COOLDOWN_KEY = "cashCooldownUntil";
+
+/** ⏳ Krátké zpoždění reakce na klik "Registrovat" (anti-mash) */
+const SUBMIT_DELAY_MS = 800;
+
+/** Utils */
+function todayStart(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+function weekdayFromSlugDay(day: "ut" | "ct"): number {
+  return day === "ut" ? 2 : 4; // Út=2, Čt=4
+}
 
 /** Rozparsuje "prefix-číslo/kód" → { accountNumber, bankCode } */
 function splitCzAccount(acc: string): { accountNumber: string; bankCode: string } {
@@ -54,7 +70,7 @@ function splitCzAccount(acc: string): { accountNumber: string; bankCode: string 
 /** Primární parsování: číslo těsně před "Kč" nebo "CZK" (poslední výskyt) */
 function parseAmountNearCurrency(price?: string): number | null {
   if (!price) return null;
-  const s = price.replace(/\u00A0|\u202F/g, " "); // NBSP → mezera
+  const s = price.replace(/\u00A0|\u202F/g, " ");
   const re = /(\d{1,3}(?:[ .\u00A0\u202F]\d{3})*|\d+)(?:[.,]\d+)?(?=\s*(?:Kč|CZK))/gim;
   let match: RegExpExecArray | null = null;
   let last: string | null = null;
@@ -65,7 +81,7 @@ function parseAmountNearCurrency(price?: string): number | null {
   return Number.isFinite(val) ? val : null;
 }
 
-/** Záložní parsování: největší číslo v textu (pro případ, že v ceně chybí "Kč") */
+/** Záložní parsování: největší číslo */
 function parseFallbackAmount(price?: string): number | null {
   if (!price) return null;
   const s = price.replace(/\u00A0|\u202F/g, " ");
@@ -128,7 +144,7 @@ function buildFullMessage({
   return parts.join(" | ");
 }
 
-/** QR zpráva: <KOD>(-<AGE>-<DAY>) | <email> | <telefon>  (adresu do QR nedáváme, aby byla krátká) */
+/** QR zpráva do SPAYD: <KOD>(-<AGE>-<DAY>) | <email> | <telefon> */
 function buildQrMessage({
   courseTitle,
   email,
@@ -139,8 +155,8 @@ function buildQrMessage({
   courseTitle: string;
   email: string;
   phone: string;
-  age?: string | null; // "3-6" | "7-12"
-  day?: string | null; // "ut" | "ct"
+  age?: string | null;
+  day?: string | null;
 }) {
   const code = courseCodeFromTitle(courseTitle);
   const ageTag = age ? (age === "3-6" ? "36" : age === "7-12" ? "712" : age) : null;
@@ -150,7 +166,48 @@ function buildQrMessage({
   return `${codeWithTags} | ${email} | ${phone}`;
 }
 
-/** Sestaví URL pro PNG QR (Paylibo) – vyžaduje accountNumber + bankCode */
+/** Rozsah období z labelu "14. 10. – 16. 12." (aktuální rok) */
+function parseTermRange(label: string): { start: Date; end: Date } | null {
+  const re = /(\d{1,2})\.\s*(\d{1,2})\.\s*[–-]\s*(\d{1,2})\.\s*(\d{1,2})\./;
+  const m = label.match(re);
+  if (!m) return null;
+  const year = new Date().getFullYear();
+  const s = new Date(year, Number(m[2]) - 1, Number(m[1]));
+  const e = new Date(year, Number(m[4]) - 1, Number(m[3]));
+  s.setHours(0, 0, 0, 0);
+  e.setHours(23, 59, 59, 999);
+  return { start: s, end: e };
+}
+
+/** Všechny termíny daného dne v týdnu mezi start/end */
+function enumerateLessonDatesInRange(day: "ut" | "ct", start: Date, end: Date): Date[] {
+  const wanted = weekdayFromSlugDay(day);
+  const d = new Date(start);
+  d.setHours(0, 0, 0, 0);
+  while (d.getDay() !== wanted) d.setDate(d.getDate() + 1);
+  const out: Date[] = [];
+  while (d <= end) {
+    out.push(new Date(d));
+    d.setDate(d.getDate() + 7);
+  }
+  return out;
+}
+
+/** Zbývající a zpoplatněné lekce s uzávěrkou do půlnoci před lekcí a „první zdarma“ */
+function computeRemainingAndPayable(day: "ut" | "ct", termLabel: string) {
+  const parsed = parseTermRange(termLabel);
+  const fallbackStart = todayStart();
+  const fallbackEnd = new Date(fallbackStart);
+  fallbackEnd.setDate(fallbackEnd.getDate() + 90);
+  const range = parsed ?? { start: fallbackStart, end: fallbackEnd };
+  const lessons = enumerateLessonDatesInRange(day, range.start, range.end);
+  const nowCut = todayStart();
+  const remaining = lessons.filter((d) => d.getTime() > nowCut.getTime()).length;
+  const payable = Math.max(0, remaining - 1); // první zdarma
+  return { remaining, payable };
+}
+
+/** Paylibo QR URL (PNG) */
 function buildPayliboQrUrl({
   accountNumber,
   bankCode,
@@ -192,11 +249,17 @@ export default function CoursePage({
   const course: Course | undefined = getCourse(slug);
 
   // ---------- 🧠 HOOKY ----------
-  const [age, setAge] = useState<string>(""); // děti: "3-6" | "7-12"
-  const [day, setDay] = useState<string>(""); // děti/balet/latino: "ut" | "ct"
-  const [note, setNote] = useState<string>(""); // individuál
+  const [age, setAge] = useState<string>("");
+  const [day, setDay] = useState<string>("");
+  const [note, setNote] = useState<string>("");
+
+  const [paymentMethod, setPaymentMethod] = useState<"bank" | "cash" | "">("");
+
+  const [customRemaining, setCustomRemaining] = useState<number>(TOTAL_LESSONS);
 
   const [showQr, setShowQr] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
   const [qrUrl, setQrUrl] = useState<string>("");
   const [fullMessage, setFullMessage] = useState<string>("");
   const [accountString, setAccountString] = useState<string>(RECEIVER_ACCOUNT);
@@ -212,12 +275,14 @@ export default function CoursePage({
     note?: string | null;
   } | null>(null);
 
-  // ⏱️ Stav a logika cooldownu pro "hotově" odeslání
+  // ⏱️ Cooldown stav (ponecháno pro bezpečí, i když tlačítko v modalu už není)
   const [isSendingCash, setIsSendingCash] = useState(false);
-  const [cashCooldown, setCashCooldown] = useState<number>(0); // sekundy zbývající
+  const [cashCooldown, setCashCooldown] = useState<number>(0);
+
+  /** ⏳ stav krátkého zpoždění submitu */
+  const [submitDelayActive, setSubmitDelayActive] = useState(false);
 
   useEffect(() => {
-    // načti případný běžící cooldown (sdílený napříč modalem/stránkou)
     const tick = () => {
       const until = Number(localStorage.getItem(CASH_COOLDOWN_KEY) || "0");
       const leftMs = Math.max(0, until - Date.now());
@@ -243,7 +308,33 @@ export default function CoursePage({
   const isBalletCourse = slugVal === "krouzek-baletu";
   const hasDaySelect = isKidsCourse || isLatinoCourse || isBalletCourse;
 
-  // ---------- Early return ----------
+  // Cena za 1 lekci
+  const perLessonPrice = useMemo(() => {
+    if (isKidsCourse) {
+      if (age === "3-6") return KIDS_PRICES["3-6"] / TOTAL_LESSONS;
+      if (age === "7-12") return KIDS_PRICES["7-12"] / TOTAL_LESSONS;
+      return 0;
+    }
+    if (isBalletCourse) return BALLET_PRICE / TOTAL_LESSONS;
+    const base = parsedPriceAmount ?? 0;
+    return base > 0 ? base / TOTAL_LESSONS : 0;
+  }, [isKidsCourse, isBalletCourse, age, parsedPriceAmount]);
+
+  // Auto výpočet pro kurzy s dnem
+  const autoInfo = useMemo(() => {
+    if (!hasDaySelect || !day) return { remaining: 0, payable: 0 };
+    return computeRemainingAndPayable(day as "ut" | "ct", KIDS_TERM_LABEL);
+  }, [hasDaySelect, day]);
+
+  // sjednocené proměnné
+  const remainingAll = hasDaySelect
+    ? autoInfo.remaining
+    : Math.max(0, Math.floor(customRemaining));
+  const payableAll = hasDaySelect
+    ? autoInfo.payable
+    : Math.max(0, remainingAll - 1);
+  const amountAll = Number((perLessonPrice * payableAll).toFixed(2));
+
   if (!course) {
     return (
       <div className="relative min-h-screen overflow-x-hidden bg-gray-50">
@@ -273,8 +364,23 @@ export default function CoursePage({
     }
   };
 
-  // Odeslání emailu (hotově) – s ochranou proti vícenásobnému odeslání
-  const sendCashEmail = async (data: {
+  // Odeslání potvrzovacího e-mailu (a notifikace majiteli) — univerzální
+  const sendRegistrationEmails = async ({
+    firstName,
+    lastName,
+    email,
+    phone,
+    courseTitle,
+    age,
+    day,
+    place,
+    note,
+    paymentMethod,
+    amount,
+    qrUrl,
+    remaining,
+    payable,
+  }: {
     firstName: string;
     lastName: string;
     email: string;
@@ -284,82 +390,59 @@ export default function CoursePage({
     day?: string | null;
     place?: string | null;
     note?: string | null;
+    paymentMethod: "bank" | "cash";
+    amount: number;
+    qrUrl?: string | null;
+    remaining: number;
+    payable: number;
   }) => {
-    // pokud už odesíláme nebo běží cooldown, skonči
-    if (isSendingCash) return;
-    const until = Number(localStorage.getItem(CASH_COOLDOWN_KEY) || "0");
-    const leftMs = until - Date.now();
-    if (leftMs > 0) {
-      const leftSec = Math.ceil(leftMs / 1000);
-      alert(`Žádost už byla odeslána. Zkuste to prosím znovu za ${leftSec} s.`);
-      return;
-    }
+    const name = `${firstName} ${lastName}`.trim();
 
-    setIsSendingCash(true);
-
-    const name = `${data.firstName} ${data.lastName}`.trim();
-    const messageLines = [
-      `Registrace kurzu (platba hotově na místě)`,
-      `Kurz: ${data.courseTitle}`,
-      `Jméno: ${data.firstName}`,
-      `Příjmení: ${data.lastName}`,
-      `Email: ${data.email}`,
-      `Tel: ${data.phone}`,
-      isKidsCourse && data.age ? `Věková kategorie: ${data.age}` : "",
-      hasDaySelect && data.day ? `Den konání: ${data.day === "ut" ? "Úterý" : "Čtvrtek"}` : "",
-      hasDaySelect && data.place ? `Místo: ${data.place}` : "",
-      isIndividualCourse && data.note ? `Zpráva klienta: ${data.note}` : "",
+    const lines: string[] = [
+      `Potvrzení registrace`,
+      `Kurz: ${courseTitle}`,
+      `Jméno: ${firstName} ${lastName}`,
+      `Email: ${email}`,
+      `Tel: ${phone}`,
+      age ? `Věková kategorie: ${age}` : "",
+      day ? `Den konání: ${day === "ut" ? "Úterý" : "Čtvrtek"}` : "",
+      place ? `Místo: ${place}` : "",
+      note ? `Poznámka: ${note}` : "",
+      `Způsob platby: ${paymentMethod === "bank" ? "Převodem na účet" : "Hotově na místě"}`,
+      `Zbývající lekce: ${remaining} (platí se ${payable}, první je zdarma)`,
+      `Částka k úhradě: ${amount.toFixed(0)} ${CURRENCY}`,
+      paymentMethod === "bank" ? `QR pro platbu je přiložen v e-mailu.` : `Platba proběhne hotově na místě.`,
     ].filter(Boolean);
-    const message = messageLines.join("\n");
 
-    try {
-      const res = await fetch("/api/contact", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone: data.phone, email: data.email, message }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.ok) throw new Error(json.error || "Odeslání selhalo.");
+    const message = lines.join("\n");
 
-      // nastavit cooldown po úspěchu
-      const nextAllowed = Date.now() + CASH_COOLDOWN_MS;
-      localStorage.setItem(CASH_COOLDOWN_KEY, String(nextAllowed));
+    const payload: Record<string, any> = {
+      name,
+      phone,
+      email,
+      message,
+      meta: {
+        courseTitle,
+        paymentMethod,
+        amount,
+        currency: CURRENCY,
+        remaining,
+        payable,
+        age,
+        day,
+        place,
+        note,
+      },
+    };
 
-      alert("Registrace pro platbu hotově byla odeslána. Děkujeme!");
-      setShowQr(false);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      alert(`Nepodařilo se odeslat email: ${msg}`);
-    } finally {
-      setIsSendingCash(false);
+    if (paymentMethod === "bank" && qrUrl) {
+      payload.qrUrl = qrUrl; // server si podle ní stáhne PNG a pošle jako přílohu/inline
     }
-  };
-
-  // Odeslání zájmu u INDIVIDUÁLNÍ LEKCE
-  const sendInterestEmail = async (data: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-    note: string;
-    courseTitle: string;
-  }) => {
-    const name = `${data.firstName} ${data.lastName}`.trim();
-    const message = [
-      `Zájem o individuální lekci`,
-      `Kurz: ${data.courseTitle}`,
-      `Jméno: ${data.firstName}`,
-      `Příjmení: ${data.lastName}`,
-      `Email: ${data.email}`,
-      `Tel: ${data.phone}`,
-      `Požadované tance / poznámka:`,
-      data.note,
-    ].join("\n");
 
     const res = await fetch("/api/contact", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, phone: data.phone, email: data.email, message }),
+      body: JSON.stringify(payload),
     });
     const json = await res.json();
     if (!res.ok || !json.ok) throw new Error(json.error || "Odeslání selhalo.");
@@ -368,48 +451,41 @@ export default function CoursePage({
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
+    // --- krátké zpoždění reakce na klik ---
+    if (submitDelayActive) return;
+    setSubmitDelayActive(true);
+    try {
+      await new Promise((r) => setTimeout(r, SUBMIT_DELAY_MS));
+    } catch (_) {
+      // ignore
+    }
+
     const data = new FormData(e.currentTarget);
     const firstName = String(data.get("firstName") || "").trim();
     const lastName = String(data.get("lastName") || "").trim();
     const email = String(data.get("email") || "").trim();
     const phone = String(data.get("phone") || "").trim();
 
-    // Výběry:
     const selectedAge = isKidsCourse ? String(data.get("age") || "").trim() : "";
     const selectedDay = hasDaySelect ? String(data.get("day") || "").trim() : "";
     const selectedPlace = hasDaySelect ? placeForDay(selectedDay) : null;
 
-    // U individuálu pošli i informační e-mail lektorovi
-    if (isIndividualCourse) {
-      const noteText = String(data.get("note") || "").trim();
-      try {
-        await sendInterestEmail({
-          firstName,
-          lastName,
-          email,
-          phone,
-          note: noteText,
-          courseTitle: course.title,
-        });
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        alert(`Nepodařilo se odeslat zprávu lektorovi: ${msg}`);
-      }
+    if (!paymentMethod) {
+      alert("Vyberte prosím způsob platby (Převodem / Hotově).");
+      setSubmitDelayActive(false);
+      return;
     }
 
-    // částka – děti dle věku, balet pevně, jinak parsed
-    let amount = parsedPriceAmount ?? 0;
+    // Validace dle typu
     if (isKidsCourse) {
-      amount =
-        selectedAge === "3-6" ? KIDS_PRICES["3-6"] :
-        selectedAge === "7-12" ? KIDS_PRICES["7-12"] : 0;
-      if (!selectedAge) { alert("Vyberte prosím věkovou kategorii."); return; }
-      if (!selectedDay) { alert("Vyberte prosím den konání (Úterý/Čtvrtek)."); return; }
-    } else if (isBalletCourse) {
-      amount = BALLET_PRICE;
-      if (!selectedDay) { alert("Vyberte prosím den konání (Úterý/Čtvrtek)."); return; }
-    } else if (isLatinoCourse) {
-      if (!selectedDay) { alert("Vyberte prosím den konání (Úterý/Čtvrtek)."); return; }
+      if (!selectedAge) { alert("Vyberte prosím věkovou kategorii."); setSubmitDelayActive(false); return; }
+      if (!selectedDay) { alert("Vyberte prosím den konání (Úterý/Čtvrtek)."); setSubmitDelayActive(false); return; }
+      if (remainingAll <= 0) { alert("Pro zvolený den už v tomto období nezbývá žádná lekce k registraci."); setSubmitDelayActive(false); return; }
+    } else if (isBalletCourse || isLatinoCourse) {
+      if (!selectedDay) { alert("Vyberte prosím den konání (Úterý/Čtvrtek)."); setSubmitDelayActive(false); return; }
+      if (remainingAll <= 0) { alert("Pro zvolený den už v tomto období nezbývá žádná lekce k registraci."); setSubmitDelayActive(false); return; }
+    } else {
+      if (remainingAll <= 0) { alert("Zadejte prosím kladný počet zbývajících lekcí."); setSubmitDelayActive(false); return; }
     }
 
     // účet → accountNumber + bankCode
@@ -421,6 +497,7 @@ export default function CoursePage({
       bankCode = parts.bankCode;
     } catch {
       alert("Chyba v čísle účtu. Zkontroluj formát, např. 123456789/0100.");
+      setSubmitDelayActive(false);
       return;
     }
 
@@ -428,7 +505,7 @@ export default function CoursePage({
     let vs = phone.replace(/\D/g, "").slice(0, 10);
     if (!vs) vs = String(Date.now()).slice(-10);
 
-    // PLNÝ text pro zobrazení/zkopírování
+    // PLNÝ text (pro náhled/kopírování)
     const full = buildFullMessage({
       courseTitle: course.title,
       firstName,
@@ -440,7 +517,7 @@ export default function CoursePage({
       place: selectedPlace,
     });
 
-    // QR zpráva
+    // QR zpráva + částka
     const spaydMsg = buildQrMessage({
       courseTitle: course.title,
       email,
@@ -449,18 +526,47 @@ export default function CoursePage({
       day: hasDaySelect ? selectedDay : null,
     });
 
-    // QR URL (PNG) přes Paylibo
-    const url = buildPayliboQrUrl({
-      accountNumber,
-      bankCode,
-      amount,
-      currency: CURRENCY,
-      message: spaydMsg,
-      vs,
-      size: 640,
-    });
+    const amount = amountAll;
 
-    setQrUrl(url);
+    // QR URL jen pokud platba převodem
+    const url =
+      paymentMethod === "bank"
+        ? buildPayliboQrUrl({
+            accountNumber,
+            bankCode,
+            amount,
+            currency: CURRENCY,
+            message: spaydMsg,
+            vs,
+            size: 640,
+          })
+        : "";
+
+    // Napřed pošli e-maily (majiteli + uživateli)
+    try {
+      await sendRegistrationEmails({
+        firstName,
+        lastName,
+        email,
+        phone,
+        courseTitle: course.title,
+        age: isKidsCourse ? selectedAge : null,
+        day: hasDaySelect ? selectedDay : null,
+        place: selectedPlace,
+        note: isIndividualCourse ? String(data.get("note") || "").trim() : null,
+        paymentMethod: paymentMethod === "bank" ? "bank" : "cash",
+        amount,
+        qrUrl: paymentMethod === "bank" ? url : null,
+        remaining: remainingAll,
+        payable: payableAll,
+      });
+    } catch (err: any) {
+      alert(`Nepodařilo se odeslat potvrzení: ${err?.message || err}`);
+      setSubmitDelayActive(false);
+      return;
+    }
+
+    // Stav pro modaly
     setFullMessage(full);
     setAccountString(RECEIVER_ACCOUNT);
     setLastForm({
@@ -473,7 +579,18 @@ export default function CoursePage({
       day: hasDaySelect ? selectedDay : null,
       place: selectedPlace,
     });
-    setShowQr(true);
+
+    if (paymentMethod === "bank") {
+      setQrUrl(url);
+      setShowQr(true);
+    } else {
+      // hotově
+      const nextAllowed = Date.now() + CASH_COOLDOWN_MS;
+      localStorage.setItem(CASH_COOLDOWN_KEY, String(nextAllowed));
+      setShowSuccess(true);
+    }
+
+    setSubmitDelayActive(false);
   };
 
   return (
@@ -513,6 +630,39 @@ export default function CoursePage({
             <p className="text-gray-500 italic">Popis kurzu bude doplněn.</p>
           )}
         </article>
+
+        {/* praktické info (ponecháno) */}
+        {(isKidsCourse || isLatinoCourse) && (
+          <section className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
+            <div className="bg-white rounded-2xl shadow-lg ring-1 ring-gray-200 p-6">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">Praktické informace</h3>
+              <ul className="list-disc pl-5 space-y-2 text-gray-700">
+                <li>
+                  {isKidsCourse
+                    ? "Kroužky probíhají v délce 60 minut pravidelně v úterý/čtvrtek (viz rozvrh)."
+                    : "Kurz probíhá v délce 60 minut pravidelně v úterý/čtvrtek (viz rozvrh)."}
+                </li>
+                <li>Hodinu je možné si vyzkoušet kdykoli jednou ZDARMA.</li>
+                <li>Přihlášku provedete vyplněním a odesláním formuláře níže.</li>
+              </ul>
+            </div>
+            <div className="bg-white rounded-2xl shadow-lg ring-1 ring-gray-200 p-6">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">Na lekci si vezměte</h3>
+              {isKidsCourse ? (
+                <ul className="list-disc pl-5 space-y-2 text-gray-700">
+                  <li>Oblečení na tanec (pohodlné, nebarvící obuv).</li>
+                  <li>Lahvičku s pitím.</li>
+                  <li>A hlavně úsměv! 💃🕺</li>
+                </ul>
+              ) : (
+                <ul className="list-disc pl-5 space-y-2 text-gray-700">
+                  <li>Pohodlné oblečení a nebarvící obuv.</li>
+                  <li>Dobrou náladu! 💃🕺</li>
+                </ul>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* Info + formulář */}
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10 items-stretch">
@@ -621,8 +771,8 @@ export default function CoursePage({
                       aria-label="Věková kategorie"
                     >
                       <option value="" disabled>Vyberte věk…</option>
-                      <option value="3-6">3–6 let</option>
-                      <option value="7-12">7–12 let</option>
+                      <option value="3-6">První stupeň</option>
+                      <option value="7-12">Druhý stupeň</option>
                     </select>
                     <svg className="pointer-events-none absolute right-3 top-[38px] h-5 w-5 -translate-y-1/2 text-gray-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                       <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.18l3.71-2.95a.75.75 0 111.04 1.08l-4.24 3.37a.75.75 0 01-.94 0L5.21 8.31a.75.75 0 01.02-1.1z" clipRule="evenodd"/>
@@ -651,21 +801,20 @@ export default function CoursePage({
                     </svg>
                   </div>
 
-                  {/* Dynamická cena dle věku */}
-                  <p className="text-sm text-gray-700">
-                    Cena: {age ? `${KIDS_PRICES[age as "3-6" | "7-12"]} Kč / 10 lekcí` : "Vyberte věkovou kategorii"}
-                  </p>
-
-                  {/* Vybrané místo podle dne */}
                   {day && (
-                    <p className="text-sm text-gray-700">
-                      Vybrané místo: {placeForDay(day)}
-                    </p>
+                    <div className="text-sm text-gray-700 space-y-1">
+                      <p>Vybrané místo: {placeForDay(day)}</p>
+                      <p>Zbývá <b>{remainingAll}</b> lekcí. První je <b>zdarma</b>, platíte <b>{payableAll}</b> lekcí.</p>
+                      <p>
+                        Cena: {perLessonPrice > 0 ? `${perLessonPrice.toFixed(0)} Kč / lekce` : "—"} ·
+                        K úhradě: <b>{amountAll.toFixed(0)} Kč</b>
+                      </p>
+                    </div>
                   )}
                 </>
               )}
 
-              {/* BALET + LATINO: Den + vybrané místo */}
+              {/* BALET + LATINO */}
               {(isBalletCourse || isLatinoCourse) && (
                 <>
                   <div className="relative">
@@ -678,23 +827,53 @@ export default function CoursePage({
                       required
                       value={day}
                       onChange={(e) => setDay(e.target.value)}
-                      className={`w-full rounded-lg border border-gray-300 bg-white px-3 py-2 appearance-none pr-10 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB] ${day ? "text-gray-900" : "text-gray-400"}`}
+                      className={`w-full rounded-lg border border-gray-300 bg-white px-3 py-2 appearance-none pr  -10 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB] ${day ? "text-gray-900" : "text-gray-400"}`}
                       aria-label="Den konání"
                     >
                       <option value="" disabled>Vyberte den…</option>
                       <option value="ut">Úterý</option>
                       <option value="ct">Čtvrtek</option>
                     </select>
-                    <svg className="pointer-events-none absolute right-3 top-[38px] h-5 w-5 -translate-y-1/2 text-gray-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.18l3.71-2.95a.75.75 0 111.04 1.08l-4.24 3.37a.75.75 0 01-.94 0L5.21 8.31a.75.75 0 01.02-1.1z" clipRule="evenodd"/>
-                    </svg>
                   </div>
+
                   {day && (
-                    <p className="text-sm text-gray-700">
-                      Vybrané místo: {placeForDay(day)}
-                    </p>
+                    <div className="text-sm text-gray-700 space-y-1">
+                      <p>Vybrané místo: {placeForDay(day)}</p>
+                      <p>Zbývá <b>{remainingAll}</b> lekcí. První je <b>zdarma</b>, platíte <b>{payableAll}</b> lekcí.</p>
+                      <p>
+                        Cena: {perLessonPrice > 0 ? `${perLessonPrice.toFixed(0)} Kč / lekce` : "—"} ·
+                        K úhradě: <b>{amountAll.toFixed(0)} Kč</b>
+                      </p>
+                    </div>
                   )}
                 </>
+              )}
+
+              {/* Kurzy bez volby dne */}
+              {!hasDaySelect && (
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-900">
+                    Počet zbývajících lekcí do konce kurzu
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={TOTAL_LESSONS}
+                    value={customRemaining}
+                    onChange={(e) => setCustomRemaining(Number(e.target.value))}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900
+                               focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB]"
+                    placeholder={`${TOTAL_LESSONS}`}
+                  />
+                  <div className="text-sm text-gray-700 space-y-1">
+                    <p>První lekce je vždy <b>zkušební zdarma</b>.</p>
+                    <p>Zbývá <b>{remainingAll}</b> lekcí, platíte <b>{payableAll}</b> lekcí.</p>
+                    <p>
+                      Cena: {perLessonPrice > 0 ? `${perLessonPrice.toFixed(0)} Kč / lekce` : "—"} ·
+                      K úhradě: <b>{amountAll.toFixed(0)} Kč</b>
+                    </p>
+                  </div>
+                </div>
               )}
 
               {/* Individuál */}
@@ -709,20 +888,51 @@ export default function CoursePage({
                     required
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
-                    placeholder="Napište, o jaké tance máte zájem (např. waltz, tango, salsa) a kdy vám vyhovují termíny."
+                    placeholder="Napište, o jaké tance máte zájem a kdy vám vyhovují termíny."
                     className="mt-1 w-full min-h-[110px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB] resize-vertical"
                   />
                 </div>
               )}
 
+              {/* Způsob platby */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-900">Způsob platby <span className="text-red-600">*</span></p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className={`flex items-center gap-3 rounded-lg border text-gray-500 px-3 py-2 cursor-pointer ${paymentMethod === "bank" ? "border-[#57BDDB] ring-2 ring-[#57BDDB]" : "border-gray-300"}`}>
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="bank"
+                      checked={paymentMethod === "bank"}
+                      onChange={() => setPaymentMethod("bank")}
+                    />
+                    <span>Převodem na účet</span>
+                  </label>
+                  <label className={`flex items-center gap-3 rounded-lg border text-gray-500 px-3 py-2 cursor-pointer ${paymentMethod === "cash" ? "border-[#57BDDB] ring-2 ring-[#57BDDB]" : "border-gray-300"}`}>
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="cash"
+                      checked={paymentMethod === "cash"}
+                      onChange={() => setPaymentMethod("cash")}
+                    />
+                    <span>Hotově na místě</span>
+                  </label>
+                </div>
+              </div>
+
               <button
                 type="submit"
-                className="w-full rounded-lg bg-[#57BDDB] px-4 py-3 text-white font-semibold shadow hover:bg-[#3BA7C7] transition"
+                disabled={submitDelayActive}
+                aria-disabled={submitDelayActive}
+                className={`w-full rounded-lg px-4 py-3 text-white font-semibold shadow transition
+                  ${submitDelayActive ? "bg-[#57BDDB]/60 cursor-not-allowed" : "bg-[#57BDDB] hover:bg-[#3BA7C7]"}`}
               >
-                Registrovat a zaplatit
+                Registrovat
               </button>
               <p className="text-xs text-gray-500 mt-2">
-                Po načtení QR kódu vaše bankovní aplikace předvyplní všechny údaje včetně zprávy pro příjemce. Zkontrolujte je a potvrďte platbu.
+                První lekce je zkušební zdarma. Uzávěrka registrace je vždy do půlnoci před dnem lekce.
+                Pokud zvolíte platbu převodem, po registraci se zobrazí QR kód a údaje k platbě (přijdou i e-mailem).
               </p>
             </form>
           </div>
@@ -782,7 +992,7 @@ export default function CoursePage({
         </p>
       </footer>
 
-      {/* QR modal */}
+      {/* --- MODAL: QR pro převod --- */}
       {showQr && qrUrl && (
         <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowQr(false)} />
@@ -799,16 +1009,19 @@ export default function CoursePage({
                 </svg>
               </button>
 
+              <h4 className="text-lg font-semibold text-gray-900 mb-3 text-center">Údaje k platbě převodem</h4>
+
               <div className="flex justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={qrUrl} alt="QR kód pro platbu" className="h-72 w-72 rounded-md ring-1 ring-gray-200" />
               </div>
 
               <p className="text-xs text-gray-500 mt-4 text-center">
-                Po načtení QR kódu vaše bankovní aplikace předvyplní všechny údaje včetně zprávy pro příjemce. Zkontrolujte je a potvrďte platbu.
+                Po načtení QR kódu vaše bankovní aplikace předvyplní všechny údaje včetně zprávy pro příjemce.
+                První lekce je zkušební zdarma.
               </p>
 
-              {/* Úplná zpráva pro příjemce + kopírování */}
+              {/* Zpráva pro příjemce + účet */}
               <div className="mt-5">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-medium text-gray-900">Zpráva pro příjemce</span>
@@ -821,7 +1034,6 @@ export default function CoursePage({
                 </p>
               </div>
 
-              {/* Číslo účtu + kopírování */}
               <div className="mt-4">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-medium text-gray-900">Číslo účtu</span>
@@ -833,24 +1045,32 @@ export default function CoursePage({
                   {accountString}
                 </p>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
 
-              {/* Hotově na místě – tlačítko s cooldownem */}
-              {lastForm && (
-                <button
-                  onClick={() => sendCashEmail(lastForm)}
-                  disabled={isSendingCash || cashCooldown > 0}
-                  aria-disabled={isSendingCash || cashCooldown > 0}
-                  aria-busy={isSendingCash}
-                  className={`mt-6 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 font-semibold transition
-                    ${isSendingCash || cashCooldown > 0 ? "opacity-60 cursor-not-allowed" : "hover:bg-gray-50"}`}
-                >
-                  {isSendingCash
-                    ? "Odesílám…"
-                    : cashCooldown > 0
-                      ? `Znovu za ${cashCooldown}s`
-                      : "Registrovat a zaplatit hotově na místě"}
-                </button>
-              )}
+      {/* --- MODAL: úspěch pro hotově --- */}
+      {showSuccess && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowSuccess(false)} />
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl ring-1 ring-gray-200 p-6 relative">
+              <button
+                onClick={() => setShowSuccess(false)}
+                className="absolute right-3 top-3 rounded-full p-2 text-gray-900 hover:bg-gray-200"
+                aria-label="Zavřít"
+                title="Zavřít"
+              >
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6l-12 12" />
+                </svg>
+              </button>
+
+              <h4 className="text-lg font-semibold text-gray-900 mb-2 text-center">Registrace proběhla úspěšně</h4>
+              <p className="text-sm text-gray-700 text-center">
+                Informace byly zaslány na Váš e-mail. Platba proběhne <b>hotově na místě</b>. První lekce je zkušební zdarma.
+              </p>
             </div>
           </div>
         </div>
