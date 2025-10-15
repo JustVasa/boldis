@@ -78,7 +78,6 @@ export default function Contact() {
             <div className="relative z-10 p-8 text-white bg-white/10 border border-white/20">
               <h3 className="text-3xl font-bold mb-6">Kontaktujte nás</h3>
 
-              {/* Status zpráva */}
               {status && (
                 <div
                   className={[
@@ -153,20 +152,32 @@ export default function Contact() {
             <div className="absolute inset-0 z-20 flex items-center">
               <div className="w-full h-full p-8 text-white bg-white/10 border border-white/20 flex flex-col justify-center">
                 <h3 className="text-3xl font-bold mb-8">Taneční centrum Mirror</h3>
+
+                {/* GRID řádky: ikona (auto) + text (1fr) */}
                 <ul className="space-y-6 text-lg">
-                  <li className="flex items-center">
-                    <FaMapMarkerAlt className="text-white text-2xl mr-4" />
-                    Moravská Třebová, Česká republika
+                  <li className="grid grid-cols-[auto,1fr] items-start gap-4">
+                    <FaMapMarkerAlt className="text-white text-2xl mt-1 shrink-0" />
+                    <span className="min-w-0 break-words">
+                      Moravská Třebová, Česká republika
+                    </span>
                   </li>
-                  <li className="flex items-center">
-                    <FaPhoneAlt className="text-white text-2xl mr-4" />
-                    <a href="tel:+420123456789" className="hover:underline">
+
+                  <li className="grid grid-cols-[auto,1fr] items-start gap-4">
+                    <FaPhoneAlt className="text-white text-2xl mt-1 shrink-0" />
+                    <a
+                      href="tel:+420775234140"
+                      className="hover:underline min-w-0 break-words"
+                    >
                       +420 775 234 140
                     </a>
                   </li>
-                  <li className="flex items-center">
-                    <FaEnvelope className="text-white text-2xl mr-4" />
-                    <a href="mailto:tanecnicentrummirror@gmail.com" className="hover:underline">
+
+                  <li className="grid grid-cols-[auto,1fr] items-start gap-4">
+                    <FaEnvelope className="text-white text-2xl mt-1 shrink-0" />
+                    <a
+                      href="mailto:tanecnicentrummirror@gmail.com"
+                      className="hover:underline min-w-0 break-all sm:break-words"
+                    >
                       tanecnicentrummirror@gmail.com
                     </a>
                   </li>

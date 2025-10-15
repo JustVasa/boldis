@@ -57,7 +57,6 @@ export default function Hero() {
             <b>Příští rok plánujeme otevřít vlastní sál v Moravské Třebové</b>.
           </span>
         </p>
-
         <Link href="/courses">
           <button className="mt-0 px-6 sm:px-8 py-2.5 sm:py-3 bg-[#57BDDB] text-white font-poppins font-semibold text-sm sm:text-lg rounded-full shadow-lg hover:bg-[#3BA7C7] transition-all">
             Zjistit více
