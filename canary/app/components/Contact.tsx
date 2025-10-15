@@ -12,6 +12,10 @@ import {
 } from "react-icons/fa";
 
 export default function Contact() {
+  // --- statické kontakty (snadná změna na jednom místě) ---
+  const EMAIL = "tanecnicentrummirror@gmail.com";
+  const PHONE = "+420 775 234 140";
+
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -61,19 +65,16 @@ export default function Contact() {
     }
   };
 
+  // rozdělení emailu kvůli zalomení přesně na '@'
+  const [emailUser, emailDomain] = EMAIL.split("@");
+
   return (
     <section id="contact" className="relative py-32 bg-gray-50 scroll-mt-24">
       <div className="container mx-auto px-6">
         <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-stretch">
           {/* Form card */}
           <div className="relative rounded-2xl overflow-hidden shadow-2xl">
-            <Image
-              src="/contact1.jpg"
-              alt=""
-              fill
-              className="object-cover"
-              priority
-            />
+            <Image src="/contact1.jpg" alt="" fill className="object-cover" priority />
             <div className="absolute inset-0 z-0 bg-black/40 backdrop-blur-xl" />
             <div className="relative z-10 p-8 text-white bg-white/10 border border-white/20">
               <h3 className="text-3xl font-bold mb-6">Kontaktujte nás</h3>
@@ -141,19 +142,12 @@ export default function Contact() {
 
           {/* Info card */}
           <div className="relative rounded-2xl overflow-hidden shadow-2xl min-h-[420px] lg:min-h-[500px]">
-            <Image
-              src="/contact.jpg"
-              alt=""
-              fill
-              className="object-cover"
-              priority
-            />
+            <Image src="/contact.jpg" alt="" fill className="object-cover" priority />
             <div className="absolute inset-0 z-10 bg-black/40 backdrop-blur-xl" />
             <div className="absolute inset-0 z-20 flex items-center">
               <div className="w-full h-full p-8 text-white bg-white/10 border border-white/20 flex flex-col justify-center">
                 <h3 className="text-3xl font-bold mb-8">Taneční centrum Mirror</h3>
 
-                {/* GRID řádky: ikona (auto) + text (1fr) */}
                 <ul className="space-y-6 text-lg">
                   <li className="grid grid-cols-[auto,1fr] items-start gap-4">
                     <FaMapMarkerAlt className="text-white text-2xl mt-1 shrink-0" />
@@ -164,21 +158,23 @@ export default function Contact() {
 
                   <li className="grid grid-cols-[auto,1fr] items-start gap-4">
                     <FaPhoneAlt className="text-white text-2xl mt-1 shrink-0" />
-                    <a
-                      href="tel:+420775234140"
-                      className="hover:underline min-w-0 break-words"
-                    >
-                      +420 775 234 140
+                    <a href="tel:+420775234140" className="hover:underline min-w-0 break-words">
+                      {PHONE}
                     </a>
                   </li>
 
                   <li className="grid grid-cols-[auto,1fr] items-start gap-4">
                     <FaEnvelope className="text-white text-2xl mt-1 shrink-0" />
                     <a
-                      href="mailto:tanecnicentrummirror@gmail.com"
-                      className="hover:underline min-w-0 break-all sm:break-words"
+                      href={`mailto:${EMAIL}`}
+                      className="hover:underline min-w-0 break-normal"
                     >
-                      tanecnicentrummirror@gmail.com
+                      <span className="inline">
+                        {emailUser}
+                        {"@"}
+                        <wbr />
+                        {emailDomain}
+                      </span>
                     </a>
                   </li>
                 </ul>
