@@ -166,15 +166,15 @@ export default function Contact() {
                   </li>
                   <li className="flex items-center">
                     <FaEnvelope className="text-white text-2xl mr-4" />
-                    <a href="mailto:info@mirror.cz" className="hover:underline">
-                      info@mirror.cz
+                    <a href="mailto:tanecnicentrummirror@gmail.com" className="hover:underline">
+                      tanecnicentrummirror@gmail.com
                     </a>
                   </li>
                 </ul>
 
                 <div className="flex space-x-4 mt-8">
                   <a
-                    href="https://facebook.com"
+                    href="https://www.facebook.com/people/Taneční-centrum-Mirror/61580038576573/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="bg-white/20 hover:bg-white/30 p-3 rounded-full transition-colors"
@@ -182,7 +182,7 @@ export default function Contact() {
                     <FaFacebook className="text-white text-2xl" />
                   </a>
                   <a
-                    href="https://instagram.com"
+                    href="https://www.instagram.com/tc_mirror/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="bg-white/20 hover:bg-white/30 p-3 rounded-full transition-colors"

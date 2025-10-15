@@ -31,10 +31,12 @@ export default function Promo() {
               Jsme taneční centrum MIRROR
             </h1>
             <h4 className="text-lg text-gray-700 mt-3">
-              Nově otevřené taneční centrum v Moravské Třebové pod vedením Tomáše Boldiše - profesionálního tanečníka a lektora. 
+              Nově otevřené taneční centrum v Moravské Třebové pod vedením Tomáše Boldiše –
+              profesionálního tanečníka a lektora se zaměřením na <b>společenské tance</b>.
             </h4>
             <p className="mt-4 text-gray-600 leading-relaxed">
-              Nabízíme taneční kurzy pro dospělé, studenty i děti. Přijďte si zatančit s námi! 
+              Nabízíme kurzy <b>společenských tanců</b> pro dospělé, studenty i děti
+              (waltz, tango, quickstep, latina a další). Přijďte si zatančit s námi!
             </p>
             <Link
               href="./about"
