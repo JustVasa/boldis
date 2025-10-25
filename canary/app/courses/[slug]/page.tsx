@@ -242,6 +242,84 @@ function buildPayliboQrUrl({
   return `${base}?${p.toString()}`;
 }
 
+/* =========================================================
+   📩 POMOCNÉ FUNKCE PRO MÍSTO / DATUM / ČAS DO E-MAILU
+   ========================================================= */
+
+const CZ_DAY = ["Neděle", "Pondělí", "Úterý", "Středa", "Čtvrtek", "Pátek", "Sobota"];
+function formatDateCz(d: Date) {
+  return `${CZ_DAY[d.getDay()]} ${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()}`;
+}
+
+function nextLessonDateForDay(day: "ut" | "ct", termLabel: string): Date | null {
+  const range = parseTermRange(termLabel);
+  if (!range) return null;
+  const all = enumerateLessonDatesInRange(day, range.start, range.end);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  return all.find((d) => d.getTime() >= now.getTime()) ?? null;
+}
+
+/** Parsování z `course.schedule` typu "Čtvrtek 19:30–21:00" → {weekday, time} */
+function parseSchedule(schedule?: string): { weekday?: number; time?: string } {
+  if (!schedule) return {};
+  const s = schedule.trim();
+  const map: Record<string, number> = {
+    "Pondělí": 1, "Po": 1, "Úterý": 2, "Ut": 2, "Út": 2,
+    "Středa": 3, "St": 3, "Čtvrtek": 4, "Čt": 4, "Ct": 4,
+    "Pátek": 5, "Pá": 5, "Pa": 5, "Sobota": 6, "So": 6, "Neděle": 0, "Ne": 0
+  };
+  let weekday: number | undefined;
+  for (const k of Object.keys(map)) {
+    if (s.toLowerCase().startsWith(k.toLowerCase())) { weekday = map[k]; break; }
+  }
+  const timeMatch = s.match(/(\d{1,2}:\d{2}\s*[–-]\s*\d{1,2}:\d{2})/);
+  const time = timeMatch ? timeMatch[1].replace(/\s*-\s*/,"–").replace(" - ","–") : undefined;
+  return { weekday, time };
+}
+
+/** Další výskyt dne v týdnu od dneška (včetně dneška) */
+function nextDateForWeekday(weekday: number): Date {
+  const d = new Date();
+  d.setHours(0,0,0,0);
+  const shift = (weekday - d.getDay() + 7) % 7;
+  d.setDate(d.getDate() + shift);
+  return d;
+}
+
+/** ⏰ Časy pro kurzy s výběrem dne (Út/Čt) – UPRAV PODLE REALITY */
+const TIME_BY_SLUG_DAY: Record<string, { ut?: string; ct?: string }> = {
+  "tanecni-krouzky-pro-deti": { ut: "15:00–16:00", ct: "15:00–16:00" },
+  "latino-ladies":             { ut: "18:00–19:00", ct: "18:00–19:00" },
+  "krouzek-baletu":            { ut: "14:30–15:30", ct: "14:30–15:30" },
+};
+
+/** Vypočti MÍSTO / DATUM / ČAS pro potvrzení */
+function computeWhenWhere({
+  course,
+  hasDaySelect,
+  selectedDay,
+}: {
+  course: Course;
+  hasDaySelect: boolean;
+  selectedDay?: "ut" | "ct" | "" | null;
+}): { place?: string; date?: string; time?: string } {
+  if (hasDaySelect && selectedDay) {
+    const place = placeForDay(selectedDay) ?? course.address ?? undefined;
+    const nd = nextLessonDateForDay(selectedDay, KIDS_TERM_LABEL);
+    const date = nd ? formatDateCz(nd) : undefined;
+    const times = TIME_BY_SLUG_DAY[course.slug] || {};
+    const time = (selectedDay === "ut" ? (times.ut ?? course.schedule) : (times.ct ?? course.schedule)) ?? undefined;
+    return { place, date, time };
+  }
+  // Kurzy bez výběru dne → parsuj z course.schedule
+  const place = course.address ?? undefined;
+  const { weekday, time } = parseSchedule(course.schedule);
+  const d = typeof weekday === "number" ? nextDateForWeekday(weekday) : null;
+  const date = d ? formatDateCz(d) : undefined;
+  return { place, date, time };
+}
+
 export default function CoursePage({
   params,
 }: {
@@ -255,7 +333,7 @@ export default function CoursePage({
   const [day, setDay] = useState<string>("");
   const [note, setNote] = useState<string>("");
 
-  // partner pro středoškoláky + soukromé
+  // druhý partner (Partnerka)
   const [partnerFirst, setPartnerFirst] = useState<string>("");
   const [partnerLast, setPartnerLast] = useState<string>("");
 
@@ -271,12 +349,10 @@ export default function CoursePage({
   const [fullMessage, setFullMessage] = useState<string>("");
   const [accountString, setAccountString] = useState<string>(RECEIVER_ACCOUNT);
 
-  // ⏱️ Cooldown stav (ponecháno pro bezpečí)
   useEffect(() => {
     const tick = () => {
       const until = Number(localStorage.getItem(CASH_COOLDOWN_KEY) || "0");
       const leftMs = Math.max(0, until - Date.now());
-      // neukazujeme, ale držíme blokaci vícenásobného submitu pro hotově
       if (leftMs <= 0) localStorage.removeItem(CASH_COOLDOWN_KEY);
     };
     tick();
@@ -284,7 +360,6 @@ export default function CoursePage({
     return () => clearInterval(id);
   }, []);
 
-  // Základní cena vyčtená z popisku (fallback pro jiné kurzy)
   const parsedPriceAmount = useMemo(() => {
     const price = course?.price ?? undefined;
     const a = parseAmountNearCurrency(price);
@@ -298,10 +373,13 @@ export default function CoursePage({
   const isLatinoCourse = slugVal === "latino-ladies";
   const isBalletCourse = slugVal === "krouzek-baletu";
   const isYouthCourse = slugVal === "tanecni-pro-mladez";
+  const isAdultCourse = slugVal === "tanecni-pro-dospele";
   const isWeddingCourse = slugVal === "svatebni-lekce";
   const hasDaySelect = isKidsCourse || isLatinoCourse || isBalletCourse;
 
-  // Cena za 1 lekci (skupinové kurzy – za osobu / za pár u svatebních)
+  // Kurzy, kde se chodí v páru (formulář se dvěma bloky)
+  const isPairCourse = isYouthCourse || isAdultCourse;
+
   const perLessonPriceGroup = useMemo(() => {
     if (isKidsCourse) {
       if (age === "3-6") return KIDS_PRICES["3-6"] / TOTAL_LESSONS;
@@ -313,24 +391,21 @@ export default function CoursePage({
     return base > 0 ? base / TOTAL_LESSONS : 0;
   }, [isKidsCourse, isBalletCourse, age, parsedPriceAmount]);
 
-  // Auto výpočet pro kurzy s dnem
   const autoInfo = useMemo(() => {
     if (!hasDaySelect || !day) return { remaining: 0, payable: 0 };
     return computeRemainingAndPayable(day as "ut" | "ct", KIDS_TERM_LABEL);
   }, [hasDaySelect, day]);
 
-  // sjednocené proměnné pro skupinové kurzy
   const remainingGroup = hasDaySelect ? autoInfo.remaining : TOTAL_LESSONS;
-  const payableGroup = hasDaySelect ? autoInfo.payable : Math.max(0, TOTAL_LESSONS - 1); // první zdarma
+  const payableGroup = hasDaySelect ? autoInfo.payable : Math.max(0, TOTAL_LESSONS - 1);
   const amountGroupPerPerson = Number((perLessonPriceGroup * payableGroup).toFixed(2));
 
-  // 🔁 párový násobitel jen pro středoškolské (svatební už NE – 7 500 Kč je za pár)
+  // párový násobitel zůstává jen pro středoškolské (jak bylo dosud)
   const pairMultiplier = isYouthCourse ? 2 : 1;
 
-  // finální částka
   const amountAll =
     isIndividualCourse
-      ? individualCount * INDIVIDUAL_PER_LESSON /* za osobu */
+      ? individualCount * INDIVIDUAL_PER_LESSON
       : amountGroupPerPerson * pairMultiplier;
 
   if (!course) {
@@ -351,7 +426,10 @@ export default function CoursePage({
     );
   }
 
-  const desc = course.desc?.trim() ?? "";
+  // ✅ alias pro TS
+  const courseReq: Course = course;
+
+  const desc = courseReq.desc?.trim() ?? "";
 
   const copy = async (text: string) => {
     try {
@@ -362,7 +440,7 @@ export default function CoursePage({
     }
   };
 
-  // Odeslání potvrzovacího e-mailu (a notifikace majiteli)
+  // Odeslání potvrzovacího e-mailu
   async function sendRegistrationEmails(args: {
     firstName: string;
     lastName: string;
@@ -406,16 +484,24 @@ export default function CoursePage({
 
     const name = `${firstName} ${lastName}`.trim();
 
+    const whenWhere = computeWhenWhere({
+      course: courseReq,
+      hasDaySelect,
+      selectedDay: (day as "ut" | "ct" | "" | null) || null,
+    });
+
     const lines: string[] = [
       `Potvrzení registrace`,
       `Kurz: ${courseTitle}`,
-      `Jméno: ${firstName} ${lastName}`,
-      partnerFirst || partnerLast ? `Partner/ka: ${partnerFirst ?? ""} ${partnerLast ?? ""}`.trim() : "",
+      isPair ? `Partner: ${firstName} ${lastName}` : `Jméno: ${firstName} ${lastName}`,
+      isPair ? `Partnerka: ${partnerFirst ?? ""} ${partnerLast ?? ""}`.trim() : "",
       `Email: ${email}`,
       `Tel: ${phone}`,
       age ? `Věková kategorie: ${age}` : "",
       day ? `Den konání: ${day === "ut" ? "Úterý" : "Čtvrtek"}` : "",
-      place ? `Místo: ${place}` : "",
+      whenWhere.place ? `Místo: ${whenWhere.place}` : "",
+      whenWhere.date  ? `Datum nejbližší lekce: ${whenWhere.date}` : "",
+      whenWhere.time  ? `Čas: ${whenWhere.time}` : "",
       note ? `Poznámka: ${note}` : "",
       individualCount
         ? `Soukromé lekce: ${individualCount} × ${INDIVIDUAL_PER_LESSON} Kč${isPair ? " × 2 osoby" : ""}`
@@ -423,7 +509,7 @@ export default function CoursePage({
       !individualCount && remaining !== undefined && payable !== undefined
         ? `Zbývající lekce: ${remaining} (platí se ${payable}, první je zdarma)`
         : "",
-      isPair ? `Cena počítána za pár (2 osoby)` : "",
+      isPair ? `Pozn.: registrace za pár (2 osoby)` : "",
       `Způsob platby: ${paymentMethod === "bank" ? "Převodem na účet" : "Hotově na místě"}`,
       `Částka k úhradě: ${amount.toFixed(0)} ${CURRENCY}`,
       paymentMethod === "bank" ? `QR pro platbu je přiložen v e-mailu.` : `Platba proběhne hotově na místě.`,
@@ -451,6 +537,7 @@ export default function CoursePage({
         partnerLast,
         individualCount,
         pair: isPair,
+        whenWhere,
       },
     };
 
@@ -476,8 +563,9 @@ export default function CoursePage({
     const email     = String(data.get("email") || "").trim();
     const phone     = String(data.get("phone") || "").trim();
 
-    const pFirst = (isYouthCourse || isIndividualCourse) ? String(data.get("partnerFirst") || "").trim() : "";
-    const pLast  = (isYouthCourse || isIndividualCourse) ? String(data.get("partnerLast") || "").trim() : "";
+    // Partnerka u párových kurzů; u individuálu se nečte a nevyžaduje
+    const pFirst = isPairCourse ? String(data.get("partnerFirst") || "").trim() : "";
+    const pLast  = isPairCourse ? String(data.get("partnerLast") || "").trim() : "";
 
     const selectedAge = isKidsCourse ? String(data.get("age") || "").trim() : "";
     const selectedDay = hasDaySelect ? String(data.get("day") || "").trim() : "";
@@ -500,9 +588,10 @@ export default function CoursePage({
       if (remaining <= 0) { alert("Pro zvolený den už v tomto období nezbývá žádná lekce k registraci."); return; }
     }
 
-    if (isYouthCourse || isIndividualCourse) {
+    // ✅ Partnerka se vyžaduje jen u párových kurzů (dospělí + mládež)
+    if (isPairCourse) {
       if (!pFirst || !pLast) {
-        alert("Doplňte prosím jméno a příjmení partnera/ky.");
+        alert("Doplňte prosím jméno a příjmení partnerky.");
         return;
       }
     }
@@ -532,7 +621,7 @@ export default function CoursePage({
 
     // PLNÝ text (pro náhled/kopírování)
     let full = buildFullMessage({
-      courseTitle: course.title,
+      courseTitle: courseReq.title,
       firstName,
       lastName,
       email,
@@ -541,23 +630,33 @@ export default function CoursePage({
       day: hasDaySelect ? selectedDay : null,
       place: selectedPlace,
     });
-    if (isYouthCourse || isIndividualCourse) {
-      full += ` | Partner: ${pFirst} ${pLast}`;
+
+    // doplníme partnerku u párových kurzů
+    if (isPairCourse) {
+      full += ` | Partnerka: ${pFirst} ${pLast}`;
     }
+
+    // místo/datum/čas
+    const ww = computeWhenWhere({
+      course: courseReq,
+      hasDaySelect,
+      selectedDay: (hasDaySelect ? (selectedDay as "ut" | "ct") : null),
+    });
+    if (ww.place) full += ` | Místo: ${ww.place}`;
+    if (ww.date)  full += ` | Datum: ${ww.date}`;
+    if (ww.time)  full += ` | Čas: ${ww.time}`;
 
     // QR zpráva
     const spaydMsg = buildQrMessage({
-      courseTitle: course.title,
+      courseTitle: courseReq.title,
       email,
       phone,
       age: isKidsCourse ? selectedAge : null,
       day: hasDaySelect ? selectedDay : null,
     });
 
-    // Výpočet částky
     const amount = amountAll;
 
-    // QR URL jen pokud platba převodem
     const url =
       paymentMethod === "bank"
         ? buildPayliboQrUrl({
@@ -571,16 +670,15 @@ export default function CoursePage({
           })
         : "";
 
-    // Napřed pošli e-maily (majiteli + uživateli)
     try {
       await sendRegistrationEmails({
         firstName,
         lastName,
-        partnerFirst: pFirst,
-        partnerLast: pLast,
+        partnerFirst: isPairCourse ? pFirst : undefined,
+        partnerLast: isPairCourse ? pLast : undefined,
         email,
         phone,
-        courseTitle: course.title,
+        courseTitle: courseReq.title,
         age: isKidsCourse ? selectedAge : null,
         day: hasDaySelect ? selectedDay : null,
         place: selectedPlace,
@@ -591,7 +689,7 @@ export default function CoursePage({
         remaining: isIndividualCourse ? undefined : (hasDaySelect ? computeRemainingAndPayable(selectedDay as "ut" | "ct", KIDS_TERM_LABEL).remaining : TOTAL_LESSONS),
         payable:  isIndividualCourse ? undefined : (hasDaySelect ? computeRemainingAndPayable(selectedDay as "ut" | "ct", KIDS_TERM_LABEL).payable : Math.max(0, TOTAL_LESSONS - 1)),
         individualCount: isIndividualCourse ? individualCount : undefined,
-        isPair: (isYouthCourse || isWeddingCourse),
+        isPair: isPairCourse || isWeddingCourse,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -599,7 +697,6 @@ export default function CoursePage({
       return;
     }
 
-    // Stav pro modaly
     setFullMessage(full);
     setAccountString(RECEIVER_ACCOUNT);
 
@@ -621,8 +718,8 @@ export default function CoursePage({
       <section className="relative isolate">
         <div className="absolute inset-0 -z-10">
           <Image
-            src={course.img}
-            alt={course.title}
+            src={courseReq.img}
+            alt={courseReq.title}
             fill
             priority
             className="object-cover object-center"
@@ -633,7 +730,7 @@ export default function CoursePage({
         <div className="container mx-auto px-6 pt-36 pb-28 sm:pt-44 sm:pb-36">
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-white text-3xl sm:text-5xl font-extrabold tracking-tight drop-shadow-lg">
-              {course.title}
+              {courseReq.title}
             </h1>
           </div>
         </div>
@@ -697,12 +794,12 @@ export default function CoursePage({
                     ? "Cena dle výběru (viz formulář)"
                     : isBalletCourse
                       ? "1500 Kč / 10 lekcí"
-                      : course.price ?? "—"}
+                      : courseReq.price ?? "—"}
                 </dd>
               </div>
               <div>
                 <dt className="font-medium text-gray-900"><b>Lektor</b></dt>
-                <dd className="mt-1">{course.instructor ?? "—"}</dd>
+                <dd className="mt-1">{courseReq.instructor ?? "—"}</dd>
               </div>
               <div>
                 <dt className="font-medium text-gray-900"><b>Adresa</b></dt>
@@ -713,7 +810,7 @@ export default function CoursePage({
                       <div><b>Čtvrtek:</b> {THU_ADDRESS}</div>
                     </div>
                   ) : (
-                    course.address ?? "—"
+                    courseReq.address ?? "—"
                   )}
                 </dd>
               </div>
@@ -722,7 +819,7 @@ export default function CoursePage({
                 <dd className="mt-1">
                   {hasDaySelect
                     ? "Den konání volíte ve formuláři (Úterý / Čtvrtek)"
-                    : course.schedule ?? "—"}
+                    : courseReq.schedule ?? "—"}
                 </dd>
               </div>
               {(isKidsCourse || isBalletCourse) && (
@@ -738,42 +835,69 @@ export default function CoursePage({
           <div className="bg-white rounded-2xl shadow-lg ring-1 ring-gray-200 p-6 h-full">
             <h3 className="text-xl font-semibold text-gray-900 mb-4">Registrační formulář</h3>
             <form className="space-y-4" onSubmit={onSubmit}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <input
-                  type="text"
-                  required
-                  name="firstName"
-                  placeholder="Jméno"
-                  className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB]"
-                />
-                <input
-                  type="text"
-                  required
-                  name="lastName"
-                  placeholder="Příjmení"
-                  className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB]"
-                />
-              </div>
 
-              {/* partner pro mládež + individuál */}
-              {(isYouthCourse || isIndividualCourse) && (
+              {/* Párové kurzy: dva bloky – Partner a Partnerka */}
+              {isPairCourse ? (
+                <>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 mb-2">Partner</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <input
+                        type="text"
+                        required
+                        name="firstName"
+                        placeholder="Jméno partnera"
+                        className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB]"
+                      />
+                      <input
+                        type="text"
+                        required
+                        name="lastName"
+                        placeholder="Příjmení partnera"
+                        className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB]"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 mb-2">Partnerka</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <input
+                        type="text"
+                        required
+                        name="partnerFirst"
+                        value={partnerFirst}
+                        onChange={(e) => setPartnerFirst(e.target.value)}
+                        placeholder="Jméno partnerky"
+                        className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB]"
+                      />
+                      <input
+                        type="text"
+                        required
+                        name="partnerLast"
+                        value={partnerLast}
+                        onChange={(e) => setPartnerLast(e.target.value)}
+                        placeholder="Příjmení partnerky"
+                        className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB]"
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                // Nepárové/ostatní: klasický žadatel (1 osoba)
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <input
                     type="text"
                     required
-                    name="partnerFirst"
-                    value={partnerFirst}
-                    onChange={(e) => setPartnerFirst(e.target.value)}
-                    placeholder="Jméno partnera/ky"
+                    name="firstName"
+                    placeholder="Jméno"
                     className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB]"
                   />
                   <input
                     type="text"
                     required
-                    name="partnerLast"
-                    value={partnerLast}
-                    onChange={(e) => setPartnerLast(e.target.value)}
-                    placeholder="Příjmení partnera/ky"
+                    name="lastName"
+                    placeholder="Příjmení"
                     className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB]"
                   />
                 </div>
@@ -912,7 +1036,7 @@ export default function CoursePage({
                 </div>
               )}
 
-              {/* SOUKROMÉ LEKCE – výběr počtu 1–10, 500 Kč/lekce/osoba (NE za pár) */}
+              {/* SOUKROMÉ LEKCE – (bez partnerky), jen 1 osoba */}
               {isIndividualCourse && (
                 <>
                   <div>
@@ -1001,7 +1125,7 @@ export default function CoursePage({
             Prozkoumejte i další možnosti – od společenských tanců po latino a balet.
           </p>
 
-        <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {COURSES.filter((c) => c.slug !== slug)
               .slice(0, 4)
               .map((c) => (
