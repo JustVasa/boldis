@@ -8,53 +8,36 @@ import { use, useEffect, useMemo, useState } from "react";
 import { COURSES, getCourse } from "../_data";
 import type { Course } from "../_data";
 
-/** 🔧 NASTAVENÍ PŘÍJEMCE – formát "číslo/kód" (podporuje i prefix: "12-3456789012/0100") */
+/** 🔧 NASTAVENÍ PŘÍJEMCE */
 const RECEIVER_ACCOUNT = "3283694017/3030";
 const CURRENCY = "CZK";
 
-/** 🗓️ Termín dětských skupin a baletu (informační text) */
-const KIDS_TERM_LABEL = "14. 10. – 16. 12.";
+/** 📍 Jednotná adresa */
+const KRENOV_ADDRESS = "Křenov 63, 569 22 Křenov";
+
+/** 🗓️ Termín (informační text) */
+const TERM_LABEL = "Sezóna 2025";
 
 /** 📅 Počet lekcí v kurzu (výchozí pro paušální ceny) */
 const TOTAL_LESSONS = 10;
 
-/** 💸 Ceník dětských kategorií (za 10 lekcí) */
+/** 💸 Ceník dětských kategorií (za pololetí) */
 const KIDS_PRICES: Record<"3-6" | "7-12", number> = {
   "3-6": 1800,
   "7-12": 2000,
 };
 
-/** 💸 Balet – pevná cena (za 10 lekcí) */
-const BALLET_PRICE = 1500;
+/** 💸 Balet – pevná cena (za pololetí) */
+const BALLET_PRICE = 1690;
 
 /** 💸 Soukromé lekce – cena za 1 lekci (za osobu) */
 const INDIVIDUAL_PER_LESSON = 500;
 
-/** 📍 Adresy podle dne (Út / Čt) – pro děti, balet, latino */
-const TUE_ADDRESS = "Městečko Trnávka 85, 569 41 Městečko Trnávka";
-const THU_ADDRESS = "Křenov 63, 569 22 Křenov";
-function placeForDay(day?: string | null): string | null {
-  if (!day) return null;
-  if (day === "ut") return TUE_ADDRESS;
-  if (day === "ct") return THU_ADDRESS;
-  return null;
-}
-
-/** ⏱️ Cooldown proti dvojkliku u hotově registrace (ponecháno pro jistotu) */
-const CASH_COOLDOWN_MS = 10_000; // 10 s
+/** ⏱️ Cooldown proti dvojkliku */
+const CASH_COOLDOWN_MS = 10_000; 
 const CASH_COOLDOWN_KEY = "cashCooldownUntil";
 
 /** Utils */
-function todayStart(): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-function weekdayFromSlugDay(day: "ut" | "ct"): number {
-  return day === "ut" ? 2 : 4; // Út=2, Čt=4
-}
-
-/** Rozparsuje "prefix-číslo/kód" → { accountNumber, bankCode } */
 function splitCzAccount(acc: string): { accountNumber: string; bankCode: string } {
   const s = acc.trim();
   const slashIdx = s.lastIndexOf("/");
@@ -66,7 +49,6 @@ function splitCzAccount(acc: string): { accountNumber: string; bankCode: string 
   return { accountNumber, bankCode };
 }
 
-/** Primární parsování: číslo těsně před "Kč" nebo "CZK" */
 function parseAmountNearCurrency(price?: string): number | null {
   if (!price) return null;
   const s = price.replace(/\u00A0|\u202F/g, " ");
@@ -80,7 +62,6 @@ function parseAmountNearCurrency(price?: string): number | null {
   return Number.isFinite(val) ? val : null;
 }
 
-/** Záložní parsování: největší číslo v textu */
 function parseFallbackAmount(price?: string): number | null {
   if (!price) return null;
   const s = price.replace(/\u00A0|\u202F/g, " ");
@@ -95,12 +76,10 @@ function parseFallbackAmount(price?: string): number | null {
   return best;
 }
 
-/** 🧼 Bez diakritiky */
 function stripDiacritics(str: string) {
   return str.normalize("NFD").replace(/\p{Diacritic}/gu, "");
 }
 
-/** 🧩 Kód kurzu z názvu (iniciály slov bez diakritiky) */
 function courseCodeFromTitle(title: string) {
   const clean = stripDiacritics(title).toUpperCase();
   return clean
@@ -110,7 +89,7 @@ function courseCodeFromTitle(title: string) {
     .join("");
 }
 
-/** Plná zpráva (kopírování/e-mail) – rozšířeno o `place` */
+/** Plná zpráva (kopírování/e-mail) */
 function buildFullMessage({
   courseTitle,
   firstName,
@@ -118,7 +97,7 @@ function buildFullMessage({
   email,
   phone,
   age,
-  day,
+  latinoSlot,
   place,
 }: {
   courseTitle: string;
@@ -127,7 +106,7 @@ function buildFullMessage({
   email: string;
   phone: string;
   age?: string | null;
-  day?: string | null;
+  latinoSlot?: string | null;
   place?: string | null;
 }) {
   const parts = [
@@ -137,7 +116,7 @@ function buildFullMessage({
     `Email: ${email}`,
     `Tel: ${phone}`,
     age ? `Věková kategorie: ${age}` : "",
-    day ? `Den konání: ${day === "ut" ? "Úterý" : "Čtvrtek"}` : "",
+    latinoSlot ? `Skupina: ${latinoSlot}` : "",
     place ? `Místo: ${place}` : "",
   ].filter(Boolean);
   return parts.join(" | ");
@@ -149,64 +128,17 @@ function buildQrMessage({
   email,
   phone,
   age,
-  day,
 }: {
   courseTitle: string;
   email: string;
   phone: string;
   age?: string | null;
-  day?: string | null;
 }) {
   const code = courseCodeFromTitle(courseTitle);
   const ageTag = age ? (age === "3-6" ? "36" : age === "7-12" ? "712" : age) : null;
-  const dayTag = day ?? null;
-  const suffix = [ageTag, dayTag].filter(Boolean).join("-");
+  const suffix = [ageTag].filter(Boolean).join("-");
   const codeWithTags = suffix ? `${code}-${suffix}` : code;
   return `${codeWithTags} | ${email} | ${phone}`;
-}
-
-/** Rozsah období z labelu "14. 10. – 16. 12." (aktuální rok) */
-function parseTermRange(label: string): { start: Date; end: Date } | null {
-  const re = /(\d{1,2})\.\s*(\d{1,2})\.\s*[–-]\s*(\d{1,2})\.\s*(\d{1,2})\./;
-  const m = label.match(re);
-  if (!m) return null;
-  const year = new Date().getFullYear();
-  const s = new Date(year, Number(m[2]) - 1, Number(m[1]));
-  const e = new Date(year, Number(m[4]) - 1, Number(m[3]));
-  s.setHours(0, 0, 0, 0);
-  e.setHours(23, 59, 59, 999);
-  return { start: s, end: e };
-}
-
-/** Všechny termíny daného dne v týdnu mezi start/end */
-function enumerateLessonDatesInRange(day: "ut" | "ct", start: Date, end: Date): Date[] {
-  const wanted = weekdayFromSlugDay(day);
-  const d = new Date(start);
-  d.setHours(0, 0, 0, 0);
-  while (d.getDay() !== wanted) d.setDate(d.getDate() + 1);
-  const out: Date[] = [];
-  while (d <= end) {
-    out.push(new Date(d));
-    d.setDate(d.getDate() + 7);
-  }
-  return out;
-}
-
-/** Zbývající a zpoplatněné lekce s uzávěrkou do půlnoci před lekcí a „první zdarma“ */
-function computeRemainingAndPayable(day: "ut" | "ct", termLabel: string) {
-  const parsed = parseTermRange(termLabel);
-  const fallbackStart = todayStart();
-  const fallbackEnd = new Date(fallbackStart);
-  fallbackEnd.setDate(fallbackEnd.getDate() + 90);
-  const range = parsed ?? { start: fallbackStart, end: fallbackEnd };
-  const lessons = enumerateLessonDatesInRange(day, range.start, range.end);
-
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-
-  const remaining = lessons.filter((d) => d.getTime() > now.getTime()).length;
-  const payable = Math.max(0, remaining - 1); // první zdarma
-  return { remaining, payable };
 }
 
 /** Paylibo QR URL (PNG) */
@@ -242,83 +174,6 @@ function buildPayliboQrUrl({
   return `${base}?${p.toString()}`;
 }
 
-/* =========================================================
-   📩 POMOCNÉ FUNKCE PRO MÍSTO / DATUM / ČAS DO E-MAILU
-   ========================================================= */
-
-const CZ_DAY = ["Neděle", "Pondělí", "Úterý", "Středa", "Čtvrtek", "Pátek", "Sobota"];
-function formatDateCz(d: Date) {
-  return `${CZ_DAY[d.getDay()]} ${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()}`;
-}
-
-function nextLessonDateForDay(day: "ut" | "ct", termLabel: string): Date | null {
-  const range = parseTermRange(termLabel);
-  if (!range) return null;
-  const all = enumerateLessonDatesInRange(day, range.start, range.end);
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  return all.find((d) => d.getTime() >= now.getTime()) ?? null;
-}
-
-/** Parsování z `course.schedule` typu "Čtvrtek 19:30–21:00" → {weekday, time} */
-function parseSchedule(schedule?: string): { weekday?: number; time?: string } {
-  if (!schedule) return {};
-  const s = schedule.trim();
-  const map: Record<string, number> = {
-    "Pondělí": 1, "Po": 1, "Úterý": 2, "Ut": 2, "Út": 2,
-    "Středa": 3, "St": 3, "Čtvrtek": 4, "Čt": 4, "Ct": 4,
-    "Pátek": 5, "Pá": 5, "Pa": 5, "Sobota": 6, "So": 6, "Neděle": 0, "Ne": 0
-  };
-  let weekday: number | undefined;
-  for (const k of Object.keys(map)) {
-    if (s.toLowerCase().startsWith(k.toLowerCase())) { weekday = map[k]; break; }
-  }
-  const timeMatch = s.match(/(\d{1,2}:\d{2}\s*[–-]\s*\d{1,2}:\d{2})/);
-  const time = timeMatch ? timeMatch[1].replace(/\s*-\s*/,"–").replace(" - ","–") : undefined;
-  return { weekday, time };
-}
-
-/** Další výskyt dne v týdnu od dneška (včetně dneška) */
-function nextDateForWeekday(weekday: number): Date {
-  const d = new Date();
-  d.setHours(0,0,0,0);
-  const shift = (weekday - d.getDay() + 7) % 7;
-  d.setDate(d.getDate() + shift);
-  return d;
-}
-
-/** ⏰ Časy pro kurzy s výběrem dne (Út/Čt) – UPRAV PODLE REALITY */
-const TIME_BY_SLUG_DAY: Record<string, { ut?: string; ct?: string }> = {
-  "tanecni-krouzky-pro-deti": { ut: "15:00–16:00", ct: "15:00–16:00" },
-  "latino-ladies":             { ut: "18:00–19:00", ct: "18:00–19:00" },
-  "krouzek-baletu":            { ut: "14:30–15:30", ct: "14:30–15:30" },
-};
-
-/** Vypočti MÍSTO / DATUM / ČAS pro potvrzení */
-function computeWhenWhere({
-  course,
-  hasDaySelect,
-  selectedDay,
-}: {
-  course: Course;
-  hasDaySelect: boolean;
-  selectedDay?: "ut" | "ct" | "" | null;
-}): { place?: string; date?: string; time?: string } {
-  if (hasDaySelect && selectedDay) {
-    const place = placeForDay(selectedDay) ?? course.address ?? undefined;
-    const nd = nextLessonDateForDay(selectedDay, KIDS_TERM_LABEL);
-    const date = nd ? formatDateCz(nd) : undefined;
-    const times = TIME_BY_SLUG_DAY[course.slug] || {};
-    const time = (selectedDay === "ut" ? (times.ut ?? course.schedule) : (times.ct ?? course.schedule)) ?? undefined;
-    return { place, date, time };
-  }
-  // Kurzy bez výběru dne → parsuj z course.schedule
-  const place = course.address ?? undefined;
-  const { weekday, time } = parseSchedule(course.schedule);
-  const d = typeof weekday === "number" ? nextDateForWeekday(weekday) : null;
-  const date = d ? formatDateCz(d) : undefined;
-  return { place, date, time };
-}
 
 export default function CoursePage({
   params,
@@ -330,7 +185,7 @@ export default function CoursePage({
 
   // ---------- 🧠 HOOKY ----------
   const [age, setAge] = useState<string>("");
-  const [day, setDay] = useState<string>("");
+  const [latinoSlot, setLatinoSlot] = useState<string>(""); // ⬅️ Výběr času pro Latino
   const [note, setNote] = useState<string>("");
 
   // druhý partner (Partnerka)
@@ -339,7 +194,7 @@ export default function CoursePage({
 
   const [paymentMethod, setPaymentMethod] = useState<"bank" | "cash" | "">("");
 
-  // Soukromé lekce: volba počtu (1–10)
+  // Soukromé lekce
   const [individualCount, setIndividualCount] = useState<number>(1);
 
   const [showQr, setShowQr] = useState(false);
@@ -372,13 +227,11 @@ export default function CoursePage({
   const isIndividualCourse = slugVal === "individualni-lekce";
   const isLatinoCourse = slugVal === "latino-ladies";
   const isBalletCourse = slugVal === "krouzek-baletu";
-  const isYouthCourse = slugVal === "tanecni-pro-mladez";
   const isAdultCourse = slugVal === "tanecni-pro-dospele";
   const isWeddingCourse = slugVal === "svatebni-lekce";
-  const hasDaySelect = isKidsCourse || isLatinoCourse || isBalletCourse;
 
-  // Kurzy, kde se chodí v páru (formulář se dvěma bloky)
-  const isPairCourse = isYouthCourse || isAdultCourse;
+  // Kurzy, kde se chodí v páru
+  const isPairCourse = isAdultCourse;
 
   const perLessonPriceGroup = useMemo(() => {
     if (isKidsCourse) {
@@ -391,22 +244,12 @@ export default function CoursePage({
     return base > 0 ? base / TOTAL_LESSONS : 0;
   }, [isKidsCourse, isBalletCourse, age, parsedPriceAmount]);
 
-  const autoInfo = useMemo(() => {
-    if (!hasDaySelect || !day) return { remaining: 0, payable: 0 };
-    return computeRemainingAndPayable(day as "ut" | "ct", KIDS_TERM_LABEL);
-  }, [hasDaySelect, day]);
-
-  const remainingGroup = hasDaySelect ? autoInfo.remaining : TOTAL_LESSONS;
-  const payableGroup = hasDaySelect ? autoInfo.payable : Math.max(0, TOTAL_LESSONS - 1);
-  const amountGroupPerPerson = Number((perLessonPriceGroup * payableGroup).toFixed(2));
-
-  // párový násobitel zůstává jen pro středoškolské (jak bylo dosud)
-  const pairMultiplier = isYouthCourse ? 2 : 1;
-
+  // Výpočet ceny
+  const amountGroupPerPerson = Number((perLessonPriceGroup * TOTAL_LESSONS).toFixed(2));
   const amountAll =
     isIndividualCourse
       ? individualCount * INDIVIDUAL_PER_LESSON
-      : amountGroupPerPerson * pairMultiplier;
+      : amountGroupPerPerson * 1; // párový násobič odstraněn, platí se většinou za osobu nebo je cena za pár už v základu
 
   if (!course) {
     return (
@@ -418,8 +261,7 @@ export default function CoursePage({
             Zkuste se vrátit na{" "}
             <Link className="text-[#57BDDB] underline" href="/#courses">
               přehled kurzů
-            </Link>
-            .
+            </Link>.
           </p>
         </main>
       </div>
@@ -428,7 +270,6 @@ export default function CoursePage({
 
   // ✅ alias pro TS
   const courseReq: Course = course;
-
   const desc = courseReq.desc?.trim() ?? "";
 
   const copy = async (text: string) => {
@@ -450,14 +291,12 @@ export default function CoursePage({
     phone: string;
     courseTitle: string;
     age?: string | null;
-    day?: string | null;
+    latinoSlot?: string | null;
     place?: string | null;
     note?: string | null;
     paymentMethod: "bank" | "cash";
     amount: number;
     qrUrl?: string | null;
-    remaining?: number;
-    payable?: number;
     individualCount?: number;
     isPair: boolean;
   }) {
@@ -470,25 +309,17 @@ export default function CoursePage({
       phone,
       courseTitle,
       age,
-      day,
+      latinoSlot,
       place,
       note,
       paymentMethod,
       amount,
       qrUrl,
-      remaining,
-      payable,
       individualCount,
       isPair,
     } = args;
 
     const name = `${firstName} ${lastName}`.trim();
-
-    const whenWhere = computeWhenWhere({
-      course: courseReq,
-      hasDaySelect,
-      selectedDay: (day as "ut" | "ct" | "" | null) || null,
-    });
 
     const lines: string[] = [
       `Potvrzení registrace`,
@@ -498,16 +329,11 @@ export default function CoursePage({
       `Email: ${email}`,
       `Tel: ${phone}`,
       age ? `Věková kategorie: ${age}` : "",
-      day ? `Den konání: ${day === "ut" ? "Úterý" : "Čtvrtek"}` : "",
-      whenWhere.place ? `Místo: ${whenWhere.place}` : "",
-      whenWhere.date  ? `Datum nejbližší lekce: ${whenWhere.date}` : "",
-      whenWhere.time  ? `Čas: ${whenWhere.time}` : "",
+      latinoSlot ? `Vybraná skupina: ${latinoSlot}` : "",
+      place ? `Místo: ${place}` : "",
       note ? `Poznámka: ${note}` : "",
       individualCount
-        ? `Soukromé lekce: ${individualCount} × ${INDIVIDUAL_PER_LESSON} Kč${isPair ? " × 2 osoby" : ""}`
-        : "",
-      !individualCount && remaining !== undefined && payable !== undefined
-        ? `Zbývající lekce: ${remaining} (platí se ${payable}, první je zdarma)`
+        ? `Soukromé lekce: ${individualCount} × ${INDIVIDUAL_PER_LESSON} Kč`
         : "",
       isPair ? `Pozn.: registrace za pár (2 osoby)` : "",
       `Způsob platby: ${paymentMethod === "bank" ? "Převodem na účet" : "Hotově na místě"}`,
@@ -527,17 +353,14 @@ export default function CoursePage({
         paymentMethod,
         amount,
         currency: CURRENCY,
-        remaining,
-        payable,
         age,
-        day,
+        latinoSlot,
         place,
         note,
         partnerFirst,
         partnerLast,
         individualCount,
         pair: isPair,
-        whenWhere,
       },
     };
 
@@ -563,13 +386,12 @@ export default function CoursePage({
     const email     = String(data.get("email") || "").trim();
     const phone     = String(data.get("phone") || "").trim();
 
-    // Partnerka u párových kurzů; u individuálu se nečte a nevyžaduje
+    // Partnerka u párových kurzů
     const pFirst = isPairCourse ? String(data.get("partnerFirst") || "").trim() : "";
     const pLast  = isPairCourse ? String(data.get("partnerLast") || "").trim() : "";
 
     const selectedAge = isKidsCourse ? String(data.get("age") || "").trim() : "";
-    const selectedDay = hasDaySelect ? String(data.get("day") || "").trim() : "";
-    const selectedPlace = hasDaySelect ? placeForDay(selectedDay) : null;
+    const selectedLatinoSlot = isLatinoCourse ? String(data.get("latinoSlot") || "").trim() : "";
 
     if (!paymentMethod) {
       alert("Vyberte prosím způsob platby (Převodem / Hotově).");
@@ -579,16 +401,12 @@ export default function CoursePage({
     // Validace dle typu
     if (isKidsCourse) {
       if (!selectedAge) { alert("Vyberte prosím věkovou kategorii."); return; }
-      if (!selectedDay) { alert("Vyberte prosím den konání (Úterý/Čtvrtek)."); return; }
-      const { remaining } = computeRemainingAndPayable(selectedDay as "ut" | "ct", KIDS_TERM_LABEL);
-      if (remaining <= 0) { alert("Pro zvolený den už v tomto období nezbývá žádná lekce k registraci."); return; }
-    } else if (isBalletCourse || isLatinoCourse) {
-      if (!selectedDay) { alert("Vyberte prosím den konání (Úterý/Čtvrtek)."); return; }
-      const { remaining } = computeRemainingAndPayable(selectedDay as "ut" | "ct", KIDS_TERM_LABEL);
-      if (remaining <= 0) { alert("Pro zvolený den už v tomto období nezbývá žádná lekce k registraci."); return; }
+    }
+    
+    if (isLatinoCourse) {
+      if (!selectedLatinoSlot) { alert("Vyberte prosím skupinu (čas)."); return; }
     }
 
-    // ✅ Partnerka se vyžaduje jen u párových kurzů (dospělí + mládež)
     if (isPairCourse) {
       if (!pFirst || !pLast) {
         alert("Doplňte prosím jméno a příjmení partnerky.");
@@ -611,7 +429,7 @@ export default function CoursePage({
       accountNumber = parts.accountNumber;
       bankCode = parts.bankCode;
     } catch {
-      alert("Chyba v čísle účtu. Zkontroluj formát, např. 123456789/0100.");
+      alert("Chyba v čísle účtu.");
       return;
     }
 
@@ -627,24 +445,13 @@ export default function CoursePage({
       email,
       phone,
       age: isKidsCourse ? selectedAge : null,
-      day: hasDaySelect ? selectedDay : null,
-      place: selectedPlace,
+      latinoSlot: isLatinoCourse ? selectedLatinoSlot : null,
+      place: KRENOV_ADDRESS,
     });
 
-    // doplníme partnerku u párových kurzů
     if (isPairCourse) {
       full += ` | Partnerka: ${pFirst} ${pLast}`;
     }
-
-    // místo/datum/čas
-    const ww = computeWhenWhere({
-      course: courseReq,
-      hasDaySelect,
-      selectedDay: (hasDaySelect ? (selectedDay as "ut" | "ct") : null),
-    });
-    if (ww.place) full += ` | Místo: ${ww.place}`;
-    if (ww.date)  full += ` | Datum: ${ww.date}`;
-    if (ww.time)  full += ` | Čas: ${ww.time}`;
 
     // QR zpráva
     const spaydMsg = buildQrMessage({
@@ -652,7 +459,6 @@ export default function CoursePage({
       email,
       phone,
       age: isKidsCourse ? selectedAge : null,
-      day: hasDaySelect ? selectedDay : null,
     });
 
     const amount = amountAll;
@@ -680,14 +486,12 @@ export default function CoursePage({
         phone,
         courseTitle: courseReq.title,
         age: isKidsCourse ? selectedAge : null,
-        day: hasDaySelect ? selectedDay : null,
-        place: selectedPlace,
+        latinoSlot: isLatinoCourse ? selectedLatinoSlot : null,
+        place: KRENOV_ADDRESS,
         note: isIndividualCourse ? String(data.get("note") || "").trim() : null,
         paymentMethod: paymentMethod === "bank" ? "bank" : "cash",
         amount,
         qrUrl: paymentMethod === "bank" ? url : null,
-        remaining: isIndividualCourse ? undefined : (hasDaySelect ? computeRemainingAndPayable(selectedDay as "ut" | "ct", KIDS_TERM_LABEL).remaining : TOTAL_LESSONS),
-        payable:  isIndividualCourse ? undefined : (hasDaySelect ? computeRemainingAndPayable(selectedDay as "ut" | "ct", KIDS_TERM_LABEL).payable : Math.max(0, TOTAL_LESSONS - 1)),
         individualCount: isIndividualCourse ? individualCount : undefined,
         isPair: isPairCourse || isWeddingCourse,
       });
@@ -748,39 +552,6 @@ export default function CoursePage({
           )}
         </article>
 
-        {/* praktické info (ponecháno) */}
-        {(slugVal === "tanecni-krouzky-pro-deti" || slugVal === "latino-ladies") && (
-          <section className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
-            <div className="bg-white rounded-2xl shadow-lg ring-1 ring-gray-200 p-6">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Praktické informace</h3>
-              <ul className="list-disc pl-5 space-y-2 text-gray-700">
-                <li>
-                  {slugVal === "tanecni-krouzky-pro-deti"
-                    ? "Kroužky probíhají v délce 60 minut pravidelně v úterý/čtvrtek (viz rozvrh)."
-                    : "Kurz probíhá v délce 60 minut pravidelně v úterý/čtvrtek (viz rozvrh)."}
-                </li>
-                <li>Hodinu je možné si vyzkoušet jednou ZDARMA.</li>
-                <li>Přihlášku provedete vyplněním a odesláním formuláře níže.</li>
-              </ul>
-            </div>
-            <div className="bg-white rounded-2xl shadow-lg ring-1 ring-gray-200 p-6">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Na lekci si vezměte</h3>
-              {slugVal === "tanecni-krouzky-pro-deti" ? (
-                <ul className="list-disc pl-5 space-y-2 text-gray-700">
-                  <li>Oblečení na tanec (pohodlné, nebarvící obuv).</li>
-                  <li>Lahvičku s pitím.</li>
-                  <li>A hlavně úsměv! 💃🕺</li>
-                </ul>
-              ) : (
-                <ul className="list-disc pl-5 space-y-2 text-gray-700">
-                  <li>Pohodlné oblečení a nebarvící obuv.</li>
-                  <li>Dobrou náladu! 💃🕺</li>
-                </ul>
-              )}
-            </div>
-          </section>
-        )}
-
         {/* Info + formulář */}
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10 items-stretch">
           {/* Info */}
@@ -793,7 +564,7 @@ export default function CoursePage({
                   {isKidsCourse
                     ? "Cena dle výběru (viz formulář)"
                     : isBalletCourse
-                      ? "1500 Kč / 10 lekcí"
+                      ? "1690 Kč / pololetí"
                       : courseReq.price ?? "—"}
                 </dd>
               </div>
@@ -803,29 +574,18 @@ export default function CoursePage({
               </div>
               <div>
                 <dt className="font-medium text-gray-900"><b>Adresa</b></dt>
-                <dd className="mt-1">
-                  {hasDaySelect ? (
-                    <div className="space-y-1">
-                      <div><b>Úterý:</b> {TUE_ADDRESS}</div>
-                      <div><b>Čtvrtek:</b> {THU_ADDRESS}</div>
-                    </div>
-                  ) : (
-                    courseReq.address ?? "—"
-                  )}
-                </dd>
+                <dd className="mt-1">{KRENOV_ADDRESS}</dd>
               </div>
               <div>
                 <dt className="font-medium text-gray-900"><b>Čas</b></dt>
                 <dd className="mt-1">
-                  {hasDaySelect
-                    ? "Den konání volíte ve formuláři (Úterý / Čtvrtek)"
-                    : courseReq.schedule ?? "—"}
+                  {courseReq.schedule ?? "—"}
                 </dd>
               </div>
               {(isKidsCourse || isBalletCourse) && (
                 <div>
                   <dt className="font-medium text-gray-900"><b>Období</b></dt>
-                  <dd className="mt-1">{KIDS_TERM_LABEL}</dd>
+                  <dd className="mt-1">{TERM_LABEL}</dd>
                 </div>
               )}
             </dl>
@@ -847,14 +607,14 @@ export default function CoursePage({
                         required
                         name="firstName"
                         placeholder="Jméno partnera"
-                        className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB]"
+                        className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]"
                       />
                       <input
                         type="text"
                         required
                         name="lastName"
                         placeholder="Příjmení partnera"
-                        className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB]"
+                        className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]"
                       />
                     </div>
                   </div>
@@ -869,7 +629,7 @@ export default function CoursePage({
                         value={partnerFirst}
                         onChange={(e) => setPartnerFirst(e.target.value)}
                         placeholder="Jméno partnerky"
-                        className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB]"
+                        className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]"
                       />
                       <input
                         type="text"
@@ -878,7 +638,7 @@ export default function CoursePage({
                         value={partnerLast}
                         onChange={(e) => setPartnerLast(e.target.value)}
                         placeholder="Příjmení partnerky"
-                        className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB]"
+                        className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]"
                       />
                     </div>
                   </div>
@@ -891,14 +651,14 @@ export default function CoursePage({
                     required
                     name="firstName"
                     placeholder="Jméno"
-                    className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB]"
+                    className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]"
                   />
                   <input
                     type="text"
                     required
                     name="lastName"
                     placeholder="Příjmení"
-                    className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB]"
+                    className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]"
                   />
                 </div>
               )}
@@ -909,7 +669,7 @@ export default function CoursePage({
                   required
                   name="email"
                   placeholder="Email"
-                  className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB]"
+                  className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]"
                   autoComplete="email"
                 />
                 <input
@@ -917,126 +677,71 @@ export default function CoursePage({
                   required
                   name="phone"
                   placeholder="Tel. číslo"
-                  className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB]"
+                  className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]"
                   autoComplete="tel"
                 />
               </div>
 
-              {/* DĚTI: Věk + Den */}
+              {/* DĚTI: Věk */}
               {isKidsCourse && (
-                <>
-                  <div className="relative">
-                    <label htmlFor="age" className="block text-sm font-medium text-gray-900 mb-1">
-                      Věková kategorie <span className="text-red-600">*</span>
-                    </label>
-                    <select
-                      id="age"
-                      name="age"
-                      required
-                      value={age}
-                      onChange={(e) => setAge(e.target.value)}
-                      className={`w-full rounded-lg border border-gray-300 bg-white px-3 py-2 appearance-none pr-10 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB] ${age ? "text-gray-900" : "text-gray-400"}`}
-                      aria-label="Věková kategorie"
-                    >
-                      <option value="" disabled>Vyberte věk…</option>
-                      <option value="3-6">První stupeň</option>
-                      <option value="7-12">Druhý stupeň</option>
-                    </select>
-                    <svg className="pointer-events-none absolute right-3 top-[38px] h-5 w-5 -translate-y-1/2 text-gray-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.18l3.71-2.95a.75.75 0 111.04 1.08l-4.24 3.37a.75.75 0 01-.94 0L5.21 8.31a.75.75 0 01.02-1.1z" clipRule="evenodd"/>
-                    </svg>
-                  </div>
-
-                  <div className="relative">
-                    <label htmlFor="day" className="block text sm font-medium text-gray-900 mb-1">
-                      Den konání <span className="text-red-600">*</span>
-                    </label>
-                    <select
-                      id="day"
-                      name="day"
-                      required
-                      value={day}
-                      onChange={(e) => setDay(e.target.value)}
-                      className={`w-full rounded-lg border border-gray-300 bg-white px-3 py-2 appearance-none pr-10 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB] ${day ? "text-gray-900" : "text-gray-400"}`}
-                      aria-label="Den konání"
-                    >
-                      <option value="" disabled>Vyberte den…</option>
-                      <option value="ut">Úterý</option>
-                      <option value="ct">Čtvrtek</option>
-                    </select>
-                    <svg className="pointer-events-none absolute right-3 top-[38px] h-5 w-5 -translate-y-1/2 text-gray-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.18l3.71-2.95a.75.75 0 111.04 1.08l-4.24 3.37a.75.75 0 01-.94 0L5.21 8.31a.75.75 0 01.02-1.1z" clipRule="evenodd"/>
-                    </svg>
-                  </div>
-
-                  {day && (
-                    <div className="text-sm text-gray-700 space-y-1">
-                      <p>Vybrané místo: {placeForDay(day)}</p>
-                      <p>Zbývá <b>{remainingGroup}</b> lekcí. První je <b>zdarma</b>, platíte <b>{payableGroup}</b> lekcí.</p>
-                      <p>
-                        Cena: {perLessonPriceGroup > 0 ? `${perLessonPriceGroup.toFixed(0)} Kč / lekce` : "—"} ·
-                        K úhradě: <b>{(amountGroupPerPerson * pairMultiplier).toFixed(0)} Kč{pairMultiplier === 2 ? " (za pár)" : ""}</b>
-                      </p>
-                    </div>
-                  )}
-                </>
+                <div className="relative">
+                  <label htmlFor="age" className="block text-sm font-medium text-gray-900 mb-1">
+                    Věková kategorie <span className="text-red-600">*</span>
+                  </label>
+                  <select
+                    id="age"
+                    name="age"
+                    required
+                    value={age}
+                    onChange={(e) => setAge(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]"
+                  >
+                    <option value="" disabled>Vyberte věk…</option>
+                    <option value="3-6">První stupeň</option>
+                    <option value="7-12">Druhý stupeň</option>
+                  </select>
+                </div>
               )}
 
-              {/* BALET + LATINO */}
-              {(isBalletCourse || isLatinoCourse) && (
-                <>
-                  <div className="relative">
-                    <label htmlFor="day" className="block text-sm font-medium text-gray-900 mb-1">
-                      Den konání <span className="text-red-600">*</span>
-                    </label>
-                    <select
-                      id="day"
-                      name="day"
-                      required
-                      value={day}
-                      onChange={(e) => setDay(e.target.value)}
-                      className={`w-full rounded-lg border border-gray-300 bg-white px-3 py-2 appearance-none pr-10 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB] ${day ? "text-gray-900" : "text-gray-400"}`}
-                      aria-label="Den konání"
-                    >
-                      <option value="" disabled>Vyberte den…</option>
-                      <option value="ut">Úterý</option>
-                      <option value="ct">Čtvrtek</option>
-                    </select>
-                  </div>
-
-                  {day && (
-                    <div className="text-sm text-gray-700 space-y-1">
-                      <p>Vybrané místo: {placeForDay(day)}</p>
-                      <p>Zbývá <b>{remainingGroup}</b> lekcí. První je <b>zdarma</b>, platíte <b>{payableGroup}</b> lekcí.</p>
-                      <p>
-                        Cena: {perLessonPriceGroup > 0 ? `${perLessonPriceGroup.toFixed(0)} Kč / lekce` : "—"} ·
-                        K úhradě: <b>{(amountGroupPerPerson * pairMultiplier).toFixed(0)} Kč{pairMultiplier === 2 ? " (za pár)" : ""}</b>
-                      </p>
-                    </div>
-                  )}
-                </>
+              {/* LATINO: Výběr času */}
+              {isLatinoCourse && (
+                <div className="relative">
+                  <label htmlFor="latinoSlot" className="block text-sm font-medium text-gray-900 mb-1">
+                    Výběr skupiny <span className="text-red-600">*</span>
+                  </label>
+                  <select
+                    id="latinoSlot"
+                    name="latinoSlot"
+                    required
+                    value={latinoSlot}
+                    onChange={(e) => setLatinoSlot(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]"
+                  >
+                    <option value="" disabled>Vyberte čas…</option>
+                    <option value="Středa 16:00–17:00 (Začátečníci 1)">Středa 16:00–17:00 (Začátečníci 1)</option>
+                    <option value="Středa 17:00–18:00 (Začátečníci 2)">Středa 17:00–18:00 (Začátečníci 2)</option>
+                    <option value="Středa 18:00–19:00 (Pokročilí)">Středa 18:00–19:00 (Pokročilí)</option>
+                  </select>
+                </div>
               )}
 
-              {/* OSTATNÍ SKUPINOVÉ KURZY (bez volby dne) – vč. středoškolských a svatebních */}
-              {!hasDaySelect && !isIndividualCourse && (
+              {/* Cena (pokud to není individual) */}
+              {!isIndividualCourse && (
                 <div className="text-sm text-gray-700 space-y-1">
-                  <p>První lekce je vždy <b>zkušební zdarma</b>.</p>
-                  <p>Zbývá <b>{remainingGroup}</b> lekcí, platíte <b>{payableGroup}</b> lekcí.</p>
                   <p>
                     Cena:{" "}
                     {perLessonPriceGroup > 0
-                      ? `${perLessonPriceGroup.toFixed(0)} Kč / lekce / ${isWeddingCourse ? "pár" : "osoba"}`
-                      : "—"}{" "}
+                      ? `${perLessonPriceGroup.toFixed(0)} Kč / lekce / osoba`
+                      : "viz ceník"}{" "}
                     · K úhradě:{" "}
                     <b>
-                      {(amountGroupPerPerson * pairMultiplier).toFixed(0)} Kč
-                      {isWeddingCourse || pairMultiplier === 2 ? " (za pár)" : ""}
+                      {amountGroupPerPerson.toFixed(0)} Kč
                     </b>
                   </p>
                 </div>
               )}
 
-              {/* SOUKROMÉ LEKCE – (bez partnerky), jen 1 osoba */}
+              {/* SOUKROMÉ LEKCE */}
               {isIndividualCourse && (
                 <>
                   <div>
@@ -1050,13 +755,13 @@ export default function CoursePage({
                       value={note}
                       onChange={(e) => setNote(e.target.value)}
                       placeholder="Napište, o jaké tance máte zájem a kdy vám vyhovují termíny."
-                      className="mt-1 w-full min-h-[110px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB] resize-vertical"
+                      className="mt-1 w-full min-h-[110px] rounded-lg border border-gray-300 bg-white px-3 py-2 resize-vertical focus:outline-none focus:ring-2 focus:ring-[#57BDDB]"
                     />
                   </div>
 
                   <div>
                     <label htmlFor="indCount" className="block text-sm font-medium text-gray-900 mb-1">
-                      Počet soukromých lekcí (1–10) — cena za osobu
+                      Počet soukromých lekcí (1–10)
                     </label>
                     <input
                       id="indCount"
@@ -1065,10 +770,9 @@ export default function CoursePage({
                       max={10}
                       value={individualCount}
                       onChange={(e) => setIndividualCount(Math.min(10, Math.max(1, Number(e.target.value) || 1)))}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#57BDDB] focus:border-[#57BDDB]"
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#57BDDB]"
                     />
                     <div className="text-sm text-gray-700 mt-2">
-                      <p>Cena: <b>{INDIVIDUAL_PER_LESSON} Kč / lekce / osoba</b></p>
                       <p>K úhradě: <b>{(individualCount * INDIVIDUAL_PER_LESSON).toFixed(0)} Kč</b></p>
                     </div>
                   </div>
@@ -1108,10 +812,6 @@ export default function CoursePage({
               >
                 Registrovat
               </button>
-              <p className="text-xs text-gray-500 mt-2">
-                U skupinových kurzů je první lekce zkušební zdarma. Uzávěrka registrace je vždy do půlnoci před dnem lekce.
-                Pokud zvolíte platbu převodem, po registraci se zobrazí QR kód a údaje k platbě (přijdou i e-mailem).
-              </p>
             </form>
           </div>
         </div>
@@ -1121,10 +821,6 @@ export default function CoursePage({
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center">
             Další kurzy v MIRROR centru
           </h2>
-          <p className="mt-2 text-center text-gray-600">
-            Prozkoumejte i další možnosti – od společenských tanců po latino a balet.
-          </p>
-
           <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {COURSES.filter((c) => c.slug !== slug)
               .slice(0, 4)
@@ -1152,23 +848,8 @@ export default function CoursePage({
                 </Link>
               ))}
           </div>
-
-          <div className="mt-8 text-center">
-            <Link
-              href="/#courses"
-              className="inline-flex items-center rounded-full border border-gray-300 px-5 py-2.5 text-gray-700 hover:bg-gray-50 transition"
-            >
-              Zpět na přehled kurzů
-            </Link>
-          </div>
         </section>
       </main>
-
-      <footer className="bg-white text-gray-700 text-center py-8 border-t border-gray-200">
-        <p className="text-lg font-medium">
-          © {new Date().getFullYear()} Taneční centrum Mirror – Tomáš Boldiš
-        </p>
-      </footer>
 
       {/* --- MODAL: QR pro převod --- */}
       {showQr && qrUrl && (
@@ -1176,78 +857,34 @@ export default function CoursePage({
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowQr(false)} />
           <div className="absolute inset-0 flex items-center justify-center p-4">
             <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl ring-1 ring-gray-200 p-6 relative">
-              <button
-                onClick={() => setShowQr(false)}
-                className="absolute right-3 top-3 rounded-full p-2 text-gray-900 hover:bg-gray-200"
-                aria-label="Zavřít"
-                title="Zavřít"
-              >
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6l-12 12" />
-                </svg>
-              </button>
-
-              <h4 className="text-lg font-semibold text-gray-900 mb-3 text-center">Údaje k platbě převodem</h4>
-
+              <button onClick={() => setShowQr(false)} className="absolute right-3 top-3 p-2 text-gray-900">✕</button>
+              <h4 className="text-lg font-semibold text-center mb-3">Údaje k platbě převodem</h4>
               <div className="flex justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={qrUrl} alt="QR kód pro platbu" className="h-72 w-72 rounded-md ring-1 ring-gray-200" />
+                <img src={qrUrl} alt="QR" className="h-64 w-64" />
               </div>
-
-              <p className="text-xs text-gray-500 mt-4 text-center">
-                Po načtení QR kódu vaše bankovní aplikace předvyplní všechny údaje včetně zprávy pro příjemce.
-              </p>
-
-              {/* Zpráva pro příjemce + účet */}
-              <div className="mt-5">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium text-gray-900">Zpráva pro příjemce</span>
-                  <button className="text-sm text-[#57BDDB] hover:underline" onClick={() => copy(fullMessage)}>
-                    Kopírovat
-                  </button>
-                </div>
-                <p className="text-sm font-mono break-words text-gray-800 bg-gray-50 p-2 rounded-md ring-1 ring-gray-200">
-                  {fullMessage}
-                </p>
-              </div>
-
               <div className="mt-4">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium text-gray-900">Číslo účtu</span>
-                  <button className="text-sm text-[#57BDDB] hover:underline" onClick={() => copy(accountString)}>
-                    Kopírovat
-                  </button>
-                </div>
-                <p className="text-sm font-mono text-gray-800 bg-gray-50 p-2 rounded-md ring-1 ring-gray-200">
-                  {accountString}
-                </p>
+                <p className="text-sm font-medium">Zpráva pro příjemce</p>
+                <p className="font-mono text-sm bg-gray-100 p-2 rounded">{fullMessage}</p>
+              </div>
+              <div className="mt-2">
+                <p className="text-sm font-medium">Číslo účtu</p>
+                <p className="font-mono text-sm bg-gray-100 p-2 rounded">{accountString}</p>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* --- MODAL: úspěch pro hotově --- */}
+      {/* --- MODAL: úspěch --- */}
       {showSuccess && (
         <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowSuccess(false)} />
           <div className="absolute inset-0 flex items-center justify-center p-4">
             <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl ring-1 ring-gray-200 p-6 relative">
-              <button
-                onClick={() => setShowSuccess(false)}
-                className="absolute right-3 top-3 rounded-full p-2 text-gray-900 hover:bg-gray-200"
-                aria-label="Zavřít"
-                title="Zavřít"
-              >
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6l-12 12" />
-                </svg>
-              </button>
-
-              <h4 className="text-lg font-semibold text-gray-900 mb-2 text-center">Registrace proběhla úspěšně</h4>
-              <p className="text-sm text-gray-700 text-center">
-                Informace byly zaslány na Váš e-mail. Platba proběhne <b>hotově na místě</b>.
-              </p>
+              <button onClick={() => setShowSuccess(false)} className="absolute right-3 top-3 p-2 text-gray-900">✕</button>
+              <h4 className="text-lg font-semibold text-center mb-2">Registrace úspěšná</h4>
+              <p className="text-center text-gray-700">Potvrzení odesláno na email. Platba hotově na místě.</p>
             </div>
           </div>
         </div>
