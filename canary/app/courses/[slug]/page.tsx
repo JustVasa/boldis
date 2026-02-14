@@ -185,7 +185,7 @@ export default function CoursePage({
 
   // ---------- 🧠 HOOKY ----------
   const [age, setAge] = useState<string>("");
-  const [latinoSlot, setLatinoSlot] = useState<string>(""); // ⬅️ Výběr času pro Latino
+  const [latinoSlot, setLatinoSlot] = useState<string>(""); 
   const [note, setNote] = useState<string>("");
 
   // druhý partner (Partnerka)
@@ -249,7 +249,7 @@ export default function CoursePage({
   const amountAll =
     isIndividualCourse
       ? individualCount * INDIVIDUAL_PER_LESSON
-      : amountGroupPerPerson * 1; // párový násobič odstraněn, platí se většinou za osobu nebo je cena za pár už v základu
+      : amountGroupPerPerson * 1; 
 
   if (!course) {
     return (
@@ -272,14 +272,7 @@ export default function CoursePage({
   const courseReq: Course = course;
   const desc = courseReq.desc?.trim() ?? "";
 
-  const copy = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      alert("Zkopírováno do schránky.");
-    } catch {
-      alert("Nepodařilo se zkopírovat.");
-    }
-  };
+  // ❌ ZDE JSEM SMAZAL FUNKCI "copy", KTERÁ ZPŮSOBOVALA CHYBU
 
   // Odeslání potvrzovacího e-mailu
   async function sendRegistrationEmails(args: {
